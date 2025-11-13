@@ -455,93 +455,6 @@ export class AlchemyProvider {
         maxPages--;
       } while (pageKey && maxPages > 0);
 
-<<<<<<< HEAD
-      // If we got transfers but none in range, the date might be too far in the past
-      // or the block range estimation is significantly off
-      if (totalTransfers > 0 && transfersInRange === 0) {
-        console.warn(`[Alchemy] Found ${totalTransfers} transfers but none in date range ${dateStr} (${startTimestamp}-${endTimestamp})`);
-      }
-
-      return { success: true, data: uniqueAddresses.size, source: "alchemy" };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return { success: false, error: msg, source: "alchemy" };
-    }
-  }
-
-  async getDailyNewContracts(dateStr: string): Promise<ProviderResult<number>> {
-    try {
-      // Count contract creations (transactions with to=null)
-      const date = new Date(`${dateStr}T00:00:00Z`);
-      const startTimestamp = Math.floor(date.getTime() / 1000);
-      const endTimestamp = startTimestamp + 86400;
-
-      // Estimate block range for the date
-      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
-      const latestBlock = parseInt(latestBlockHex, 16);
-      const blocksPerDay = 43200;
-      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
-      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
-      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
-
-      // Get transfers with pagination
-      // For past dates, use a wider block range to ensure we capture all transfers
-      const now = Math.floor(Date.now() / 1000);
-      const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
-      
-      // For past dates, expand the block range to ensure we don't miss transfers
-      const expandedStartBlock = isTodayOrFuture 
-        ? "0x0" 
-        : `0x${Math.max(0, estimatedStartBlock - blocksPerDay).toString(16)}`;
-      const expandedEndBlock = isTodayOrFuture 
-        ? "latest" 
-        : `0x${Math.min(latestBlock, estimatedEndBlock + blocksPerDay).toString(16)}`;
-      
-      const uniqueContracts = new Set<string>();
-      let pageKey: string | undefined = undefined;
-      let maxPages = 50; // Increased limit for more complete data
-      let totalTransfers = 0;
-      let contractsInRange = 0;
-
-      do {
-        const params: Record<string, unknown> = {
-          fromBlock: expandedStartBlock,
-          toBlock: expandedEndBlock,
-          category: ["external"],
-          withMetadata: true,
-          maxCount: "0x3e8",
-        };
-        if (pageKey) params.pageKey = pageKey;
-
-        const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
-          transfers?: Array<{ to?: string | null; hash?: string; metadata?: { blockTimestamp?: string } }>;
-          pageKey?: string;
-        };
-
-        if (result?.transfers) {
-          totalTransfers += result.transfers.length;
-          for (const transfer of result.transfers) {
-            const blockTime = transfer.metadata?.blockTimestamp 
-              ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
-              : null;
-            
-            // Only count contracts within the target date range
-            if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
-              // Contract creation: to is null or zero address
-              // Use hash as unique identifier if available, otherwise use a combination
-              if (!transfer.to || transfer.to === "0x0000000000000000000000000000000000000000") {
-                contractsInRange++;
-                const identifier = transfer.hash || `${blockTime}-${transfer.to || 'null'}`;
-                uniqueContracts.add(identifier);
-              }
-            }
-          }
-        }
-
-        pageKey = result?.pageKey;
-        maxPages--;
-      } while (pageKey && maxPages > 0);
-
       // If we got transfers but none in range, log a warning
       if (totalTransfers > 0 && contractsInRange === 0) {
         console.warn(`[Alchemy] Found ${totalTransfers} transfers but no contracts in date range ${dateStr}`);
@@ -618,7 +531,7 @@ export class AlchemyProvider {
       }
 
       if (validSamples === 0) {
-        return { success: false, error: "No valid blocks found for date", source: "alchemy" };
+        return { success: false, error: "No valid gas price samples found", source: "alchemy" };
       }
 
       const avgGasPrice = totalGasPrice / validSamples;
