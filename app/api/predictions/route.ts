@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/db";
-import { verifyTypedData, isAddress, createPublicClient, http } from "viem";
-import { base, baseSepolia } from "viem/chains";
+import { verifyTypedData, isAddress } from "viem";
 import { BASE_DAILY_MARKETS } from "@/lib/baseDaily";
 
 type RecordMessage = {
@@ -142,37 +141,8 @@ export async function POST(req: NextRequest) {
     });
     if (!valid) return NextResponse.json({ ok: false, error: "invalid_signature" }, { status: 400 });
 
-    // Soft-cap by ForecastVault shares if configured
-    const vaultAddr = (process.env.NEXT_PUBLIC_FORECAST_VAULT_ADDRESS || process.env.FORECAST_VAULT_ADDRESS || "").toLowerCase();
-    if (vaultAddr && /^0x[a-f0-9]{40}$/.test(vaultAddr)) {
-      try {
-        const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID || "84532");
-        const apiKey = process.env.ALCHEMY_API_KEY;
-        const rpcUrl = chainId === 8453
-          ? (apiKey ? `https://base-mainnet.g.alchemy.com/v2/${apiKey}` : undefined)
-          : (apiKey ? `https://base-sepolia.g.alchemy.com/v2/${apiKey}` : undefined);
-        const client = createPublicClient({ chain: chainId === 8453 ? base : baseSepolia, transport: http(rpcUrl) });
-
-        const erc20Abi = [
-          { name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] },
-          { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
-        ] as const;
-
-        const [shares, decimals] = await Promise.all([
-          client.readContract({ address: vaultAddr as `0x${string}`, abi: erc20Abi, functionName: 'balanceOf', args: [message.user] }) as Promise<bigint>,
-          client.readContract({ address: vaultAddr as `0x${string}`, abi: erc20Abi, functionName: 'decimals' }) as Promise<number>,
-        ]);
-
-        const pointsPerUsdc = Number(process.env.POINTS_PER_USDC || '1');
-        const cap = Math.floor(Number(shares) / Math.pow(10, decimals) * pointsPerUsdc);
-        const stakeNum = typeof message.stakePoints === 'string' ? Number(message.stakePoints) : Number(message.stakePoints.toString());
-        if (Number.isFinite(cap) && stakeNum > cap) {
-          return NextResponse.json({ ok: false, error: 'exceeds_cap', message: `Stake (${stakeNum}) exceeds your cap (${cap}). Deposit more USDC to the vault to increase your cap.`, cap }, { status: 400 });
-        }
-      } catch {
-        // Non-fatal: skip cap enforcement if RPC fails
-      }
-    }
+    // Energy-only predictions: No USDC/vault cap check needed
+    // Predictions are gated by energy cost only (30 energy per prediction)
 
     // Spend energy atomically before recording prediction
     // Each prediction costs 30 energy (fixed cost)
