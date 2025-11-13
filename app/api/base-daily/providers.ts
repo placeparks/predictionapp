@@ -13,6 +13,270 @@ export interface ProviderResult<T> {
 }
 
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
+
+// Alchemy Provider for Base metrics
+export class AlchemyProvider {
+  private apiKey: string;
+  private rpcUrl: string;
+
+  constructor(apiKey: string) {
+    if (!apiKey) {
+      throw new Error("ALCHEMY_API_KEY not configured");
+    }
+    this.apiKey = apiKey;
+    // Use Base Mainnet for daily metrics
+    this.rpcUrl = `https://base-mainnet.g.alchemy.com/v2/${apiKey}`;
+  }
+
+  private async rpcCall(method: string, params: unknown[]): Promise<unknown> {
+    const response = await fetch(this.rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method,
+        params,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Alchemy RPC error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(`Alchemy RPC error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
+    return data.result;
+  }
+
+  async getDailyTransactionCount(dateStr: string): Promise<ProviderResult<number>> {
+    try {
+      // Parse date
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400; // 24 hours
+
+      // Get current block number
+      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+      const latestBlock = parseInt(latestBlockHex, 16);
+      
+      // Base has ~2 second blocks, so ~43,200 blocks per day
+      // Estimate blocks for the date (go back from latest)
+      const blocksPerDay = 43200;
+      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+
+      // Sample blocks across the day to estimate transaction count
+      const sampleCount = 30;
+      const blockStep = Math.max(1, Math.floor((estimatedEndBlock - estimatedStartBlock) / sampleCount));
+      let totalTxCount = 0;
+      let validSamples = 0;
+
+      for (let i = 0; i < sampleCount; i++) {
+        const blockNum = estimatedStartBlock + (i * blockStep);
+        if (blockNum > latestBlock) break;
+
+        try {
+          const block = await this.rpcCall("eth_getBlockByNumber", [
+            `0x${blockNum.toString(16)}`,
+            false, // Don't include full transaction details
+          ]) as { transactions?: string[]; timestamp?: string };
+
+          if (block?.transactions) {
+            const blockTime = block.timestamp ? parseInt(block.timestamp, 16) : null;
+            // Only count if block is within our date range
+            if (!blockTime || (blockTime >= startTimestamp && blockTime < endTimestamp)) {
+              totalTxCount += block.transactions.length;
+              validSamples++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[Alchemy] Failed to fetch block ${blockNum}:`, e);
+        }
+      }
+
+      if (validSamples === 0) {
+        return { success: false, error: "No valid blocks found for date", source: "alchemy" };
+      }
+
+      // Extrapolate from sample to full day
+      const avgTxPerBlock = totalTxCount / validSamples;
+      const estimatedDailyTx = Math.floor(avgTxPerBlock * blocksPerDay);
+
+      return { success: true, data: estimatedDailyTx, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyNewAddresses(dateStr: string): Promise<ProviderResult<number>> {
+    try {
+      // Use Alchemy's getAssetTransfers to count unique addresses
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Estimate block range for the date
+      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+      const latestBlock = parseInt(latestBlockHex, 16);
+      const blocksPerDay = 43200;
+      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+
+      // Get transfers for the day with pagination
+      const uniqueAddresses = new Set<string>();
+      let pageKey: string | undefined = undefined;
+      let maxPages = 10; // Limit to avoid too many requests
+
+      do {
+        const params: Record<string, unknown> = {
+          fromBlock: `0x${estimatedStartBlock.toString(16)}`,
+          toBlock: `0x${estimatedEndBlock.toString(16)}`,
+          category: ["external", "erc20", "erc721", "erc1155"],
+          withMetadata: true,
+          maxCount: "0x3e8", // 1000 transfers per page
+        };
+        if (pageKey) params.pageKey = pageKey;
+
+        const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
+          transfers?: Array<{ from?: string; to?: string; metadata?: { blockTimestamp?: string } }>;
+          pageKey?: string;
+        };
+
+        if (result?.transfers) {
+          for (const transfer of result.transfers) {
+            const blockTime = transfer.metadata?.blockTimestamp 
+              ? parseInt(transfer.metadata.blockTimestamp, 16)
+              : null;
+            
+            if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+              if (transfer.from && transfer.from !== "0x0000000000000000000000000000000000000000") {
+                uniqueAddresses.add(transfer.from.toLowerCase());
+              }
+              if (transfer.to && transfer.to !== "0x0000000000000000000000000000000000000000") {
+                uniqueAddresses.add(transfer.to.toLowerCase());
+              }
+            }
+          }
+        }
+
+        pageKey = result?.pageKey;
+        maxPages--;
+      } while (pageKey && maxPages > 0);
+
+      return { success: true, data: uniqueAddresses.size, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyNewContracts(dateStr: string): Promise<ProviderResult<number>> {
+    try {
+      // Count contract creations (transactions with to=null)
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      const transfers = await this.rpcCall("alchemy_getAssetTransfers", [
+        {
+          fromBlock: "0x0",
+          toBlock: "latest",
+          category: ["external"],
+          withMetadata: true,
+          maxCount: "0x3e8",
+        },
+      ]) as { transfers?: Array<{ to?: string | null; metadata?: { blockTimestamp?: string } }> };
+
+      let contractCount = 0;
+      if (transfers?.transfers) {
+        for (const transfer of transfers.transfers) {
+          const blockTime = transfer.metadata?.blockTimestamp 
+            ? parseInt(transfer.metadata.blockTimestamp, 16)
+            : null;
+          
+          if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+            if (!transfer.to || transfer.to === "0x0000000000000000000000000000000000000000") {
+              contractCount++;
+            }
+          }
+        }
+      }
+
+      return { success: true, data: contractCount, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyAvgGasPrice(dateStr: string): Promise<ProviderResult<number>> {
+    try {
+      // Parse date
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Estimate block range for the date
+      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+      const latestBlock = parseInt(latestBlockHex, 16);
+      const blocksPerDay = 43200;
+      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+
+      // Sample blocks across the day to get average gas price
+      const sampleCount = 20;
+      const blockStep = Math.max(1, Math.floor((estimatedEndBlock - estimatedStartBlock) / sampleCount));
+      let totalGasPrice = 0;
+      let validSamples = 0;
+
+      for (let i = 0; i < sampleCount; i++) {
+        const blockNum = estimatedStartBlock + (i * blockStep);
+        if (blockNum > latestBlock) break;
+
+        try {
+          const block = await this.rpcCall("eth_getBlockByNumber", [
+            `0x${blockNum.toString(16)}`,
+            false,
+          ]) as { baseFeePerGas?: string; timestamp?: string };
+
+          if (block?.baseFeePerGas) {
+            const blockTime = block.timestamp ? parseInt(block.timestamp, 16) : null;
+            // Only count if block is within our date range
+            if (!blockTime || (blockTime >= startTimestamp && blockTime < endTimestamp)) {
+              const gasPriceGwei = parseInt(block.baseFeePerGas, 16) / 1e9;
+              totalGasPrice += gasPriceGwei;
+              validSamples++;
+            }
+          }
+        } catch (e) {
+          console.warn(`[Alchemy] Failed to fetch gas price for block ${blockNum}:`, e);
+        }
+      }
+
+      if (validSamples === 0) {
+        return { success: false, error: "No valid blocks found for date", source: "alchemy" };
+      }
+
+      const avgGasPrice = totalGasPrice / validSamples;
+      return { success: true, data: avgGasPrice, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+}
+
+// Single shared instance
+const alchemy = ALCHEMY_API_KEY ? new AlchemyProvider(ALCHEMY_API_KEY) : null;
 
 export class BaseScanProvider {
   private apiKey: string;
@@ -48,7 +312,14 @@ export class BaseScanProvider {
 
     const data = await response.json();
     if (data.status !== "1") {
-      throw new Error(`BaseScan API error: ${data.message || "Unknown error"}`);
+      const errorMsg = data.message || data.result || "Unknown error";
+      console.error(`[BaseScan] API error for action ${action}:`, {
+        status: data.status,
+        message: errorMsg,
+        params: params,
+        fullResponse: data
+      });
+      throw new Error(`BaseScan API error: ${errorMsg}`);
     }
 
     return data.result;
@@ -194,39 +465,63 @@ export interface MarketDataFetcher {
 
 export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   "active-addresses": {
-    provider: "basescan",
+    provider: "alchemy",
     fetch: async (dateStr: string) => {
-      if (!baseScan) {
-        return { success: false, error: "BASESCAN_API_KEY missing", source: "basescan" };
+      // Try Alchemy first (more reliable)
+      if (alchemy) {
+        const result = await alchemy.getDailyNewAddresses(dateStr);
+        if (result.success) return result;
       }
-      return baseScan.getDailyNewAddresses(dateStr);
+      // Fallback to BaseScan
+      if (baseScan) {
+        return baseScan.getDailyNewAddresses(dateStr);
+      }
+      return { success: false, error: "No API keys configured (ALCHEMY_API_KEY or BASESCAN_API_KEY)", source: "none" };
     },
   },
   "total-transactions": {
-    provider: "basescan",
+    provider: "alchemy",
     fetch: async (dateStr: string) => {
-      if (!baseScan) {
-        return { success: false, error: "BASESCAN_API_KEY missing", source: "basescan" };
+      // Try Alchemy first (more reliable)
+      if (alchemy) {
+        const result = await alchemy.getDailyTransactionCount(dateStr);
+        if (result.success) return result;
       }
-      return baseScan.getDailyTransactionCount(dateStr);
+      // Fallback to BaseScan
+      if (baseScan) {
+        return baseScan.getDailyTransactionCount(dateStr);
+      }
+      return { success: false, error: "No API keys configured (ALCHEMY_API_KEY or BASESCAN_API_KEY)", source: "none" };
     },
   },
   "avg-gas-price": {
-    provider: "basescan",
+    provider: "alchemy",
     fetch: async (dateStr: string) => {
-      if (!baseScan) {
-        return { success: false, error: "BASESCAN_API_KEY missing", source: "basescan" };
+      // Try Alchemy first (more reliable)
+      if (alchemy) {
+        const result = await alchemy.getDailyAvgGasPrice(dateStr);
+        if (result.success) return result;
       }
-      return baseScan.getDailyAvgGasPrice(dateStr);
+      // Fallback to BaseScan
+      if (baseScan) {
+        return baseScan.getDailyAvgGasPrice(dateStr);
+      }
+      return { success: false, error: "No API keys configured (ALCHEMY_API_KEY or BASESCAN_API_KEY)", source: "none" };
     },
   },
   "new-contracts": {
-    provider: "basescan",
+    provider: "alchemy",
     fetch: async (dateStr: string) => {
-      if (!baseScan) {
-        return { success: false, error: "BASESCAN_API_KEY missing", source: "basescan" };
+      // Try Alchemy first (more reliable)
+      if (alchemy) {
+        const result = await alchemy.getDailyNewContracts(dateStr);
+        if (result.success) return result;
       }
-      return baseScan.getDailyNewContracts(dateStr);
+      // Fallback to BaseScan
+      if (baseScan) {
+        return baseScan.getDailyNewContracts(dateStr);
+      }
+      return { success: false, error: "No API keys configured (ALCHEMY_API_KEY or BASESCAN_API_KEY)", source: "none" };
     },
   },
   "nft-mints": {
@@ -321,3 +616,4 @@ export async function fetchBaseMetricsForDate(dateStr: string): Promise<{
 
   return { metrics, sources, errors };
 }
+

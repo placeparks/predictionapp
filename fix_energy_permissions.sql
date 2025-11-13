@@ -68,3 +68,10 @@ ALTER FUNCTION public.get_user_referral_codes(TEXT) SECURITY DEFINER;
 ALTER FUNCTION public.deactivate_referral_code(TEXT, TEXT) SECURITY DEFINER;
 ALTER FUNCTION public.create_referral_from_code(TEXT, TEXT) SECURITY DEFINER;
 
+-- Grant permissions for predictions system tables
+GRANT SELECT, INSERT, UPDATE ON public.predictions TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON public.markets TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON public.periods TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON public.outcomes TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON public.distributions TO anon, authenticated, service_role;
+

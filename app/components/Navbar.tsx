@@ -110,6 +110,7 @@ function HeaderEnergy({ address }: { address?: string }) {
 
   const energyPercent = energy !== null ? (energy / maxEnergy) * 100 : 0;
   const isLowEnergy = energy !== null && energy < 30;
+  const refillAmount = 10; // Energy refills 10 at a time
 
   return (
     <div style={{
@@ -142,15 +143,20 @@ function HeaderEnergy({ address }: { address?: string }) {
         zIndex: 0
       }} />
       
-      <span style={{ 
-        fontSize: '1rem', 
-        filter: `drop-shadow(0 2px 8px ${isLowEnergy ? 'rgba(255, 107, 53, 0.6)' : 'rgba(120, 208, 66, 0.6)'})`,
-        position: 'relative',
-        zIndex: 1,
-        animation: isLowEnergy ? 'pulse-glow 2s ease-in-out infinite' : 'none',
-        flexShrink: 0
-      }}>⚡</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', position: 'relative', zIndex: 1 }}>
+        <span style={{ 
+          fontSize: '0.7rem', 
+          opacity: 0.9,
+          fontWeight: 600,
+          color: 'rgba(255, 255, 255, 0.9)'
+        }}>
+          +{refillAmount}
+        </span>
+        <span style={{ 
+          fontSize: '1rem', 
+          filter: `drop-shadow(0 2px 8px ${isLowEnergy ? 'rgba(255, 107, 53, 0.6)' : 'rgba(120, 208, 66, 0.6)'})`,
+          animation: isLowEnergy ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+        }}>⚡</span>
         <span style={{ 
           fontWeight: 800, 
           fontSize: '0.85rem',
@@ -165,7 +171,7 @@ function HeaderEnergy({ address }: { address?: string }) {
             fontWeight: 600,
             color: 'rgba(255, 255, 255, 0.8)'
           }}>
-            (+1 in {formatTime(nextRefillIn)})
+            (+{refillAmount} in {formatTime(nextRefillIn)})
           </span>
         )}
       </div>

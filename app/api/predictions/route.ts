@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/db";
 import { verifyTypedData, isAddress, createPublicClient, http } from "viem";
 import { base, baseSepolia } from "viem/chains";
+import { BASE_DAILY_MARKETS } from "@/lib/baseDaily";
 
 type RecordMessage = {
   user: `0x${string}`;
@@ -398,21 +399,144 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    if (!supabaseAdmin) return NextResponse.json({ ok: false, error: "supabase_not_configured" }, { status: 500 });
+    if (!supabaseAdmin) {
+      console.error("[predictions GET] Supabase admin not configured");
+      return NextResponse.json({ ok: false, error: "supabase_not_configured" }, { status: 500 });
+    }
+    
     const url = new URL(req.url);
     const user = (url.searchParams.get("user") || "").toLowerCase();
     const periodId = url.searchParams.get("periodId");
     const marketId = url.searchParams.get("marketId");
 
-    let q = supabaseAdmin.from("predictions").select("*", { count: "exact" }).order("created_at", { ascending: false });
-    if (user) q = q.eq("user_address", user);
-    if (periodId) q = q.eq("period_id", periodId);
-    if (marketId) q = q.eq("market_id", marketId);
-    const { data, error } = await q.limit(200);
-    if (error) return NextResponse.json({ ok: false, error: "db_query_failed", details: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, predictions: data });
+    console.log("[predictions GET] Query params:", { user, periodId, marketId });
+
+    // Fetch Kalshi predictions
+    let kalshiPredictions: any[] = [];
+    if (!marketId || !marketId.startsWith("base-daily-")) {
+      let q = supabaseAdmin.from("predictions").select("*", { count: "exact" }).order("created_at", { ascending: false });
+      if (user) {
+        if (!/^0x[a-f0-9]{40}$/.test(user)) {
+          console.error("[predictions GET] Invalid user address format:", user);
+          return NextResponse.json({ ok: false, error: "invalid_user_address", message: "Invalid address format" }, { status: 400 });
+        }
+        q = q.eq("user_address", user);
+      }
+      if (periodId) q = q.eq("period_id", periodId);
+      if (marketId && !marketId.startsWith("base-daily-")) q = q.eq("market_id", marketId);
+      
+      const { data, error } = await q.limit(200);
+      
+      if (error) {
+        console.error("[predictions GET] Database query error (Kalshi):", error);
+        return NextResponse.json({ 
+          ok: false, 
+          error: "db_query_failed", 
+          details: error.message,
+          code: error.code,
+          hint: error.hint 
+        }, { status: 500 });
+      }
+      
+      kalshiPredictions = (data || []).map((p: any) => ({
+        ...p,
+        prediction_type: "kalshi",
+        source: "predictions",
+      }));
+    }
+
+    // Fetch Base Daily predictions
+    let baseDailyPredictions: any[] = [];
+    if (user && (!marketId || marketId.startsWith("base-daily-"))) {
+      
+      // Get all Base Daily entries for the user
+      let baseQ = supabaseAdmin
+        .from("base_daily_entries")
+        .select(`
+          *,
+          base_daily_outcomes!left(
+            session_id,
+            market_id,
+            outcome_yes,
+            resolved_at,
+            awarded
+          )
+        `)
+        .eq("user_address", user)
+        .order("created_at", { ascending: false });
+      
+      if (marketId && marketId.startsWith("base-daily-")) {
+        baseQ = baseQ.eq("market_id", marketId.replace("base-daily-", ""));
+      }
+      
+      const { data: baseData, error: baseError } = await baseQ.limit(200);
+      
+      if (baseError) {
+        console.error("[predictions GET] Database query error (Base Daily):", baseError);
+        // Don't fail completely, just log and continue
+      } else if (baseData) {
+        // Get outcomes separately for better join
+        const sessionIds = [...new Set(baseData.map((e: any) => e.session_id))];
+        const { data: outcomesData } = await supabaseAdmin
+          .from("base_daily_outcomes")
+          .select("*")
+          .in("session_id", sessionIds);
+        
+        const outcomesMap = new Map<string, any>();
+        if (outcomesData) {
+          outcomesData.forEach((o: any) => {
+            outcomesMap.set(`${o.session_id}:${o.market_id}`, o);
+          });
+        }
+        
+        baseDailyPredictions = baseData.map((entry: any) => {
+          const outcome = outcomesMap.get(`${entry.session_id}:${entry.market_id}`);
+          const market = BASE_DAILY_MARKETS.find((m) => m.id === entry.market_id);
+          const won = outcome ? (entry.side_yes === outcome.outcome_yes) : null;
+          
+          return {
+            id: entry.id,
+            user_address: entry.user_address,
+            market_id: `base-daily-${entry.market_id}`,
+            market_title: market?.title || entry.market_id,
+            market_ticker: `BASE-DAILY-${entry.market_id.toUpperCase()}`,
+            side_yes: entry.side_yes,
+            created_at: entry.created_at,
+            prediction_type: "base_daily",
+            source: "base_daily_entries",
+            session_id: entry.session_id,
+            // Outcome information (map to match Kalshi prediction format)
+            resolved: !!outcome,
+            settled: !!outcome, // Map resolved to settled for dashboard compatibility
+            won: won,
+            outcome_yes: outcome?.outcome_yes ?? null,
+            resolved_at: outcome?.resolved_at ?? null,
+            settled_at: outcome?.resolved_at ?? null, // Map resolved_at to settled_at
+            awarded: outcome?.awarded ?? false,
+            // Base Daily specific fields
+            stake_points: null, // Base Daily doesn't use stake_points
+          };
+        });
+      }
+    }
+    
+    // Combine and sort all predictions
+    const allPredictions = [...kalshiPredictions, ...baseDailyPredictions].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA; // Most recent first
+    });
+    
+    console.log("[predictions GET] Success, returning", allPredictions.length, "predictions (", kalshiPredictions.length, "Kalshi,", baseDailyPredictions.length, "Base Daily)");
+    return NextResponse.json({ ok: true, predictions: allPredictions });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ ok: false, error: "internal_error", message: msg }, { status: 500 });
+    const stack = e instanceof Error ? e.stack : undefined;
+    console.error("[predictions GET] Unexpected error:", msg, stack);
+    return NextResponse.json({ 
+      ok: false, 
+      error: "internal_error", 
+      message: msg 
+    }, { status: 500 });
   }
 }

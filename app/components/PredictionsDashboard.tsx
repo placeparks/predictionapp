@@ -43,6 +43,7 @@ export default function PredictionsDashboard({ address }: PredictionsDashboardPr
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [betTokens, setBetTokens] = useState<number | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
     {
@@ -185,6 +186,26 @@ export default function PredictionsDashboard({ address }: PredictionsDashboardPr
       setLoading(false);
     }
   }, [address]);
+
+  const fetchBetTokens = useCallback(async () => {
+    if (!address) {
+      setBetTokens(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/points?user=${address}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const tokens = typeof data?.bet_tokens === 'number' ? data.bet_tokens : (typeof data?.points === 'number' ? data.points : Number(data?.points) || 0);
+      setBetTokens(tokens);
+    } catch (err) {
+      console.error("Failed to fetch BET tokens:", err);
+    }
+  }, [address]);
+
+  useEffect(() => {
+    void fetchBetTokens();
+  }, [fetchBetTokens]);
 
   useEffect(() => {
     void fetchPredictions();
@@ -342,6 +363,28 @@ export default function PredictionsDashboard({ address }: PredictionsDashboardPr
                 gap: "1rem",
               }}
             >
+              <div
+                style={{
+                  background: "rgba(15, 20, 35, 0.6)",
+                  border: "1px solid rgba(255, 215, 0, 0.3)",
+                  borderRadius: 16,
+                  padding: "1.25rem",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "rgba(255,255,255,0.6)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  BET Tokens
+                </div>
+                <div style={{ fontSize: "2rem", fontWeight: 800, color: "#ffd700" }}>
+                  {betTokens !== null ? betTokens.toLocaleString() : "—"}
+                </div>
+              </div>
               <div
                 style={{
                   background: "rgba(15, 20, 35, 0.6)",

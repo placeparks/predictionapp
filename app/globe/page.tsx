@@ -26,7 +26,7 @@ export default function GlobePage() {
         textShadow: "0 2px 12px rgba(0,0,0,0.4)",
         lineHeight: 1.2,
       }}>
-        Minters Globe
+        Forecast Engine
       </h1>
       <p style={{ 
         color: "rgba(255,255,255,0.75)", 
