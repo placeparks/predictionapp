@@ -10,7 +10,7 @@ import {
   isValidSessionId,
   parseSessionId,
 } from "@/lib/baseDaily";
-import { fetchBaseMetricsForDate } from "../providers";
+import { fetchBaseMetricsForDate, AlchemyProvider } from "../providers";
 
 const ADMIN_KEY =
   process.env.BASE_DAILY_ADMIN_KEY ||
@@ -300,8 +300,71 @@ async function handleAutoResolve(
       `[auto-resolve] Starting auto-resolution for session ${sessionId} (date: ${dateStr})`
     );
 
+    // Get or save block numbers for this date
+    const date = new Date(`${dateStr}T00:00:00Z`);
+    const startTimestamp = Math.floor(date.getTime() / 1000);
+    const endTimestamp = startTimestamp + 86400;
+
+    // Check if we already have saved block numbers for this session
+    const { data: sessionData } = await supabaseAdmin
+      .from("base_daily_sessions")
+      .select("start_block, end_block")
+      .eq("session_id", sessionId)
+      .maybeSingle();
+
+    let startBlock: number | null = sessionData?.start_block ?? null;
+    let endBlock: number | null = sessionData?.end_block ?? null;
+
+    // If we don't have saved blocks, get them and save them
+    if (!startBlock || !endBlock) {
+      const apiKey = process.env.ALCHEMY_API_KEY;
+      if (apiKey) {
+        try {
+          const alchemy = new AlchemyProvider(apiKey);
+          const blockRangeResult = await alchemy.getBlockRangeForDate(
+            startTimestamp,
+            endTimestamp
+          );
+
+          if (blockRangeResult.success && blockRangeResult.data) {
+            startBlock = blockRangeResult.data.startBlock;
+            endBlock = blockRangeResult.data.endBlock;
+            
+            // Save blocks to session
+            await supabaseAdmin
+              .from("base_daily_sessions")
+              .upsert({
+                session_id: sessionId,
+                start_block: startBlock,
+                end_block: endBlock,
+                phase: "settled", // Will be updated later if needed
+                open_at: new Date(startTimestamp * 1000).toISOString(),
+                lock_at: new Date(endTimestamp * 1000).toISOString(),
+                resolve_at: new Date(endTimestamp * 1000).toISOString(),
+                metrics: {},
+              }, {
+                onConflict: "session_id",
+              });
+
+            console.log(
+              `[auto-resolve] Saved block range for ${dateStr}: ${startBlock} - ${endBlock}`
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `[auto-resolve] Failed to get/save block range:`,
+            error instanceof Error ? error.message : String(error)
+          );
+        }
+      }
+    } else {
+      console.log(
+        `[auto-resolve] Using saved block range for ${dateStr}: ${startBlock} - ${endBlock}`
+      );
+    }
+
     const { metrics: metricsMap, sources, errors } =
-      await fetchBaseMetricsForDate(dateStr);
+      await fetchBaseMetricsForDate(dateStr, startBlock, endBlock);
 
     console.log("[auto-resolve] Metrics sources:", sources);
     

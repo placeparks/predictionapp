@@ -424,8 +424,8 @@ function useHover(
             index: index,
             x: hit.point.x,
             y: hit.point.y,
-            screenX: clientX - rect.left,
-            screenY: clientY - rect.top,
+            screenX: clientX, // Use viewport coordinates for fixed positioning
+            screenY: clientY, // Use viewport coordinates for fixed positioning
             isShard,
             shardObject: isShard ? hit.object : undefined,
           } as HoverInfo & { isShard?: boolean; shardObject?: THREE.Object3D });
@@ -613,17 +613,14 @@ function MintersPoints({ data, shardRefs }: { data: Minter[]; shardRefs: React.M
           transform={false}
           zIndexRange={[1000, 1000]}
           style={{
-            position: "absolute",
-            left: typeof window !== "undefined" && window.innerWidth < 768 
-              ? Math.max(10, Math.min(hoverXY.x, window.innerWidth - 200))
-              : hoverXY.x,
-            top: typeof window !== "undefined" && window.innerWidth < 768
-              ? Math.max(10, hoverXY.y - 150)
-              : hoverXY.y,
+            position: "fixed",
+            left: `${hoverXY.x}px`,
+            top: `${hoverXY.y}px`,
             pointerEvents: "none",
             transform: typeof window !== "undefined" && window.innerWidth < 768
-              ? "translateY(-100%)"
-              : "none",
+              ? "translate(-50%, -100%)"
+              : "translate(-50%, 0)",
+            zIndex: 10000,
           }}
         >
           <div

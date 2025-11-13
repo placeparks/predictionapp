@@ -53,32 +53,139 @@ export class AlchemyProvider {
     return data.result;
   }
 
-  async getDailyTransactionCount(dateStr: string): Promise<ProviderResult<number>> {
+  /**
+   * Get block numbers for a date range by binary searching blocks
+   * Returns the first block at or after startTimestamp and last block before endTimestamp
+   */
+  async getBlockRangeForDate(
+    startTimestamp: number,
+    endTimestamp: number
+  ): Promise<ProviderResult<{ startBlock: number; endBlock: number }>> {
+    try {
+      // Get latest block
+      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+      const latestBlock = parseInt(latestBlockHex, 16);
+      
+      // Get latest block timestamp to check if date is in the future
+      const latestBlockData = await this.rpcCall("eth_getBlockByNumber", [
+        `0x${latestBlock.toString(16)}`,
+        false,
+      ]) as { timestamp?: string };
+      
+      const latestTimestamp = latestBlockData.timestamp 
+        ? parseInt(latestBlockData.timestamp, 16) 
+        : Math.floor(Date.now() / 1000);
+      
+      if (startTimestamp > latestTimestamp) {
+        return { 
+          success: false, 
+          error: "Date is in the future", 
+          source: "alchemy" 
+        };
+      }
+
+      // Binary search for start block (first block >= startTimestamp)
+      // Calculate a wider search range based on how far back the date is
+      const daysAgo = Math.floor((latestTimestamp - startTimestamp) / 86400);
+      const blocksPerDay = 43200; // Base has ~2 second blocks
+      const estimatedBlocksAgo = daysAgo * blocksPerDay;
+      // Search range: from estimated position ±2 days worth of blocks for safety
+      const searchRange = Math.max(100000, estimatedBlocksAgo + (2 * blocksPerDay));
+      let low = Math.max(0, latestBlock - searchRange);
+      let high = latestBlock;
+      let startBlock = latestBlock;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const blockData = await this.rpcCall("eth_getBlockByNumber", [
+          `0x${mid.toString(16)}`,
+          false,
+        ]) as { timestamp?: string };
+        
+        const blockTime = blockData.timestamp ? parseInt(blockData.timestamp, 16) : 0;
+        
+        if (blockTime >= startTimestamp) {
+          startBlock = mid;
+          high = mid - 1;
+        } else {
+          low = mid + 1;
+        }
+      }
+
+      // Binary search for end block (last block < endTimestamp)
+      low = startBlock;
+      high = latestBlock;
+      let endBlock = startBlock;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const blockData = await this.rpcCall("eth_getBlockByNumber", [
+          `0x${mid.toString(16)}`,
+          false,
+        ]) as { timestamp?: string };
+        
+        const blockTime = blockData.timestamp ? parseInt(blockData.timestamp, 16) : 0;
+        
+        if (blockTime < endTimestamp) {
+          endBlock = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      return { 
+        success: true, 
+        data: { startBlock, endBlock }, 
+        source: "alchemy" 
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyTransactionCount(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
     try {
       // Parse date
       const date = new Date(`${dateStr}T00:00:00Z`);
       const startTimestamp = Math.floor(date.getTime() / 1000);
       const endTimestamp = startTimestamp + 86400; // 24 hours
 
-      // Get current block number
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: number;
+      let useEndBlock: number;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved block numbers (most accurate)
+        useStartBlock = startBlock;
+        useEndBlock = endBlock;
+      } else {
+        // Fallback to estimation
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        useStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        useEndBlock = useStartBlock + blocksPerDay;
+      }
+
+      // Get latest block for bounds checking
       const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
       const latestBlock = parseInt(latestBlockHex, 16);
-      
-      // Base has ~2 second blocks, so ~43,200 blocks per day
-      // Estimate blocks for the date (go back from latest)
-      const blocksPerDay = 43200;
-      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
-      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
-      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Sample blocks across the day to estimate transaction count
       const sampleCount = 30;
-      const blockStep = Math.max(1, Math.floor((estimatedEndBlock - estimatedStartBlock) / sampleCount));
+      const blockStep = Math.max(1, Math.floor((useEndBlock - useStartBlock) / sampleCount));
       let totalTxCount = 0;
       let validSamples = 0;
 
       for (let i = 0; i < sampleCount; i++) {
-        const blockNum = estimatedStartBlock + (i * blockStep);
+        const blockNum = useStartBlock + (i * blockStep);
         if (blockNum > latestBlock) break;
 
         try {
@@ -106,6 +213,7 @@ export class AlchemyProvider {
 
       // Extrapolate from sample to full day
       const avgTxPerBlock = totalTxCount / validSamples;
+      const blocksPerDay = useEndBlock - useStartBlock;
       const estimatedDailyTx = Math.floor(avgTxPerBlock * blocksPerDay);
 
       return { success: true, data: estimatedDailyTx, source: "alchemy" };
@@ -115,35 +223,64 @@ export class AlchemyProvider {
     }
   }
 
-  async getDailyNewAddresses(dateStr: string): Promise<ProviderResult<number>> {
+  async getDailyNewAddresses(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
     try {
       // Use Alchemy's getAssetTransfers to count unique addresses
       const date = new Date(`${dateStr}T00:00:00Z`);
       const startTimestamp = Math.floor(date.getTime() / 1000);
       const endTimestamp = startTimestamp + 86400;
 
-      // Estimate block range for the date
-      const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
-      const latestBlock = parseInt(latestBlockHex, 16);
-      const blocksPerDay = 43200;
-      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
-      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
-      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: string;
+      let useEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved block numbers (most accurate)
+        useStartBlock = `0x${startBlock.toString(16)}`;
+        useEndBlock = `0x${endBlock.toString(16)}`;
+      } else {
+        // Fallback to estimation
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+        useStartBlock = `0x${estimatedStartBlock.toString(16)}`;
+        useEndBlock = `0x${estimatedEndBlock.toString(16)}`;
+      }
 
       // Get transfers for the day with pagination
-      // For past dates, use a wider block range to ensure we capture all transfers
-      // Then filter by timestamp to get only the target date
+      // If we have saved block numbers, use them directly (no expansion needed)
+      // Otherwise, expand the range for safety
       const now = Math.floor(Date.now() / 1000);
       const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
       
-      // For past dates, expand the block range to ensure we don't miss transfers
-      // Use a wider range (2 days) to account for block estimation errors
-      const expandedStartBlock = isTodayOrFuture 
-        ? "0x0" 
-        : `0x${Math.max(0, estimatedStartBlock - blocksPerDay).toString(16)}`;
-      const expandedEndBlock = isTodayOrFuture 
-        ? "latest" 
-        : `0x${Math.min(latestBlock, estimatedEndBlock + blocksPerDay).toString(16)}`;
+      let finalStartBlock: string;
+      let finalEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved blocks directly - they're already accurate
+        finalStartBlock = useStartBlock;
+        finalEndBlock = useEndBlock;
+      } else if (isTodayOrFuture) {
+        // For today/future, use latest
+        finalStartBlock = "0x0";
+        finalEndBlock = "latest";
+      } else {
+        // For past dates without saved blocks, expand range slightly for safety
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const parsedStart = parseInt(useStartBlock, 16);
+        const parsedEnd = parseInt(useEndBlock, 16);
+        finalStartBlock = `0x${Math.max(0, parsedStart - blocksPerDay).toString(16)}`;
+        finalEndBlock = `0x${Math.min(latestBlock, parsedEnd + blocksPerDay).toString(16)}`;
+      }
       
       const uniqueAddresses = new Set<string>();
       let pageKey: string | undefined = undefined;
@@ -153,8 +290,8 @@ export class AlchemyProvider {
 
       do {
         const params: Record<string, unknown> = {
-          fromBlock: expandedStartBlock,
-          toBlock: expandedEndBlock,
+          fromBlock: finalStartBlock,
+          toBlock: finalEndBlock,
           category: ["external", "erc20", "erc721", "erc1155"],
           withMetadata: true,
           maxCount: "0x3e8", // 1000 transfers per page
@@ -168,10 +305,16 @@ export class AlchemyProvider {
 
         if (result?.transfers) {
           totalTransfers += result.transfers.length;
+          const sampleTimestamps: number[] = [];
           for (const transfer of result.transfers) {
             const blockTime = transfer.metadata?.blockTimestamp 
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
               : null;
+            
+            // Collect sample timestamps for debugging (first 5)
+            if (blockTime && sampleTimestamps.length < 5) {
+              sampleTimestamps.push(blockTime);
+            }
             
             // Only count addresses within the target date range
             if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
@@ -184,12 +327,135 @@ export class AlchemyProvider {
               }
             }
           }
+          
+          // Log sample timestamps on first page to debug date range issues
+          if (totalTransfers === result.transfers.length && sampleTimestamps.length > 0) {
+            console.log(`[Alchemy] Sample timestamps from transfers: ${sampleTimestamps.join(', ')} (target range: ${startTimestamp}-${endTimestamp})`);
+            console.log(`[Alchemy] Sample dates: ${sampleTimestamps.map(ts => new Date(ts * 1000).toISOString().split('T')[0]).join(', ')} (target: ${dateStr})`);
+          }
         }
 
         pageKey = result?.pageKey;
         maxPages--;
       } while (pageKey && maxPages > 0);
 
+      // If we got transfers but none in range, the date might be too far in the past
+      // or the block range estimation is significantly off
+      if (totalTransfers > 0 && transfersInRange === 0) {
+        console.warn(`[Alchemy] Found ${totalTransfers} transfers but none in date range ${dateStr} (${startTimestamp}-${endTimestamp})`);
+      }
+
+      return { success: true, data: uniqueAddresses.size, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyNewContracts(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
+    try {
+      // Count contract creations (transactions with to=null)
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: string;
+      let useEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved block numbers (most accurate)
+        useStartBlock = `0x${startBlock.toString(16)}`;
+        useEndBlock = `0x${endBlock.toString(16)}`;
+      } else {
+        // Fallback to estimation
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+        useStartBlock = `0x${estimatedStartBlock.toString(16)}`;
+        useEndBlock = `0x${estimatedEndBlock.toString(16)}`;
+      }
+
+      // Get transfers with pagination
+      // If we have saved block numbers, use them directly
+      const now = Math.floor(Date.now() / 1000);
+      const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
+      
+      let finalStartBlock: string;
+      let finalEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved blocks directly - they're already accurate
+        finalStartBlock = useStartBlock;
+        finalEndBlock = useEndBlock;
+      } else if (isTodayOrFuture) {
+        // For today/future, use latest
+        finalStartBlock = "0x0";
+        finalEndBlock = "latest";
+      } else {
+        // For past dates without saved blocks, expand range slightly for safety
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const parsedStart = parseInt(useStartBlock, 16);
+        const parsedEnd = parseInt(useEndBlock, 16);
+        finalStartBlock = `0x${Math.max(0, parsedStart - blocksPerDay).toString(16)}`;
+        finalEndBlock = `0x${Math.min(latestBlock, parsedEnd + blocksPerDay).toString(16)}`;
+      }
+      
+      const uniqueContracts = new Set<string>();
+      let pageKey: string | undefined = undefined;
+      let maxPages = 50; // Increased limit for more complete data
+      let totalTransfers = 0;
+      let contractsInRange = 0;
+
+      do {
+        const params: Record<string, unknown> = {
+          fromBlock: finalStartBlock,
+          toBlock: finalEndBlock,
+          category: ["external"],
+          withMetadata: true,
+          maxCount: "0x3e8",
+        };
+        if (pageKey) params.pageKey = pageKey;
+
+        const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
+          transfers?: Array<{ to?: string | null; hash?: string; metadata?: { blockTimestamp?: string } }>;
+          pageKey?: string;
+        };
+
+        if (result?.transfers) {
+          totalTransfers += result.transfers.length;
+          for (const transfer of result.transfers) {
+            const blockTime = transfer.metadata?.blockTimestamp 
+              ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
+              : null;
+            
+            // Only count contracts within the target date range
+            if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+              // Contract creation: to is null or zero address
+              // Use hash as unique identifier if available, otherwise use a combination
+              if (!transfer.to || transfer.to === "0x0000000000000000000000000000000000000000") {
+                contractsInRange++;
+                const identifier = transfer.hash || `${blockTime}-${transfer.to || 'null'}`;
+                uniqueContracts.add(identifier);
+              }
+            }
+          }
+        }
+
+        pageKey = result?.pageKey;
+        maxPages--;
+      } while (pageKey && maxPages > 0);
+
+<<<<<<< HEAD
       // If we got transfers but none in range, the date might be too far in the past
       // or the block range estimation is significantly off
       if (totalTransfers > 0 && transfersInRange === 0) {
@@ -288,29 +554,47 @@ export class AlchemyProvider {
     }
   }
 
-  async getDailyAvgGasPrice(dateStr: string): Promise<ProviderResult<number>> {
+  async getDailyAvgGasPrice(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
     try {
       // Parse date
       const date = new Date(`${dateStr}T00:00:00Z`);
       const startTimestamp = Math.floor(date.getTime() / 1000);
       const endTimestamp = startTimestamp + 86400;
 
-      // Estimate block range for the date
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: number;
+      let useEndBlock: number;
+      
+      if (startBlock != null && endBlock != null) {
+        // Use saved block numbers (most accurate)
+        useStartBlock = startBlock;
+        useEndBlock = endBlock;
+      } else {
+        // Fallback to estimation
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        useStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        useEndBlock = useStartBlock + blocksPerDay;
+      }
+
+      // Get latest block for bounds checking
       const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
       const latestBlock = parseInt(latestBlockHex, 16);
-      const blocksPerDay = 43200;
-      const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
-      const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
-      const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Sample blocks across the day to get average gas price
       const sampleCount = 20;
-      const blockStep = Math.max(1, Math.floor((estimatedEndBlock - estimatedStartBlock) / sampleCount));
+      const blockStep = Math.max(1, Math.floor((useEndBlock - useStartBlock) / sampleCount));
       let totalGasPrice = 0;
       let validSamples = 0;
 
       for (let i = 0; i < sampleCount; i++) {
-        const blockNum = estimatedStartBlock + (i * blockStep);
+        const blockNum = useStartBlock + (i * blockStep);
         if (blockNum > latestBlock) break;
 
         try {
@@ -530,17 +814,17 @@ const baseScan =
 
 export interface MarketDataFetcher {
   provider: DataProvider;
-  fetch: (dateStr: string) => Promise<ProviderResult<number>>;
-  fallback?: (dateStr: string) => Promise<ProviderResult<number>>;
+  fetch: (dateStr: string, startBlock?: number | null, endBlock?: number | null) => Promise<ProviderResult<number>>;
+  fallback?: (dateStr: string, startBlock?: number | null, endBlock?: number | null) => Promise<ProviderResult<number>>;
 }
 
 export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   "active-addresses": {
     provider: "alchemy",
-    fetch: async (dateStr: string) => {
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
       // Try Alchemy first (more reliable)
       if (alchemy) {
-        const result = await alchemy.getDailyNewAddresses(dateStr);
+        const result = await alchemy.getDailyNewAddresses(dateStr, startBlock, endBlock);
         if (result.success) return result;
       }
       // Fallback to BaseScan
@@ -552,10 +836,10 @@ export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   },
   "total-transactions": {
     provider: "alchemy",
-    fetch: async (dateStr: string) => {
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
       // Try Alchemy first (more reliable)
       if (alchemy) {
-        const result = await alchemy.getDailyTransactionCount(dateStr);
+        const result = await alchemy.getDailyTransactionCount(dateStr, startBlock, endBlock);
         if (result.success) return result;
       }
       // Fallback to BaseScan
@@ -567,10 +851,10 @@ export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   },
   "avg-gas-price": {
     provider: "alchemy",
-    fetch: async (dateStr: string) => {
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
       // Try Alchemy first (more reliable)
       if (alchemy) {
-        const result = await alchemy.getDailyAvgGasPrice(dateStr);
+        const result = await alchemy.getDailyAvgGasPrice(dateStr, startBlock, endBlock);
         if (result.success) return result;
       }
       // Fallback to BaseScan
@@ -582,10 +866,10 @@ export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   },
   "new-contracts": {
     provider: "alchemy",
-    fetch: async (dateStr: string) => {
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
       // Try Alchemy first (more reliable)
       if (alchemy) {
-        const result = await alchemy.getDailyNewContracts(dateStr);
+        const result = await alchemy.getDailyNewContracts(dateStr, startBlock, endBlock);
         if (result.success) return result;
       }
       // Fallback to BaseScan
@@ -647,7 +931,11 @@ export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
   },
 };
 
-export async function fetchBaseMetricsForDate(dateStr: string): Promise<{
+export async function fetchBaseMetricsForDate(
+  dateStr: string,
+  startBlock?: number | null,
+  endBlock?: number | null
+): Promise<{
   metrics: Record<string, number | null>;
   sources: Record<string, DataProvider>;
   errors: Record<string, string>;
@@ -656,10 +944,14 @@ export async function fetchBaseMetricsForDate(dateStr: string): Promise<{
   const sources: Record<string, DataProvider> = {};
   const errors: Record<string, string> = {};
 
+  // Pass block numbers to all fetchers
+  const blockStart = startBlock ?? null;
+  const blockEnd = endBlock ?? null;
+
   await Promise.all(
     Object.entries(MARKET_FETCHERS).map(async ([marketId, fetcher]) => {
       try {
-        const result = await fetcher.fetch(dateStr);
+        const result = await fetcher.fetch(dateStr, blockStart, blockEnd);
         sources[marketId] = result.source;
 
         if (result.success && result.data !== undefined) {
@@ -669,7 +961,7 @@ export async function fetchBaseMetricsForDate(dateStr: string): Promise<{
           if (result.error) errors[marketId] = result.error;
 
           if (fetcher.fallback) {
-            const fb = await fetcher.fallback(dateStr);
+            const fb = await fetcher.fallback(dateStr, blockStart, blockEnd);
             if (fb.success && fb.data !== undefined) {
               metrics[marketId] = fb.data;
               sources[marketId] = fb.source;
