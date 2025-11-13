@@ -15,6 +15,65 @@ type RecordMessage = {
   deadline: bigint | string; // seconds
 };
 
+interface KalshiPrediction {
+  id: string;
+  user_address: string;
+  vault_id: number;
+  period_id: number;
+  market_id: string;
+  side_yes: boolean;
+  stake_points: number;
+  nonce: number;
+  deadline: number;
+  signature: string;
+  created_at: string;
+  settled?: boolean;
+  settled_at?: string | null;
+  won?: boolean | null;
+  market_title?: string | null;
+  market_ticker?: string | null;
+  prediction_type?: string;
+  source?: string;
+}
+
+interface BaseDailyEntry {
+  id: string;
+  session_id: string;
+  market_id: string;
+  user_address: string;
+  side_yes: boolean;
+  created_at: string;
+}
+
+interface BaseDailyOutcome {
+  session_id: string;
+  market_id: string;
+  outcome_yes: boolean;
+  resolved_at: string | null;
+  awarded: boolean;
+}
+
+interface CombinedPrediction {
+  id: string;
+  user_address: string;
+  market_id: string;
+  market_title?: string | null;
+  market_ticker?: string | null;
+  side_yes: boolean;
+  created_at: string;
+  prediction_type: "kalshi" | "base_daily";
+  source: string;
+  session_id?: string;
+  resolved?: boolean;
+  won?: boolean | null;
+  outcome_yes?: boolean | null;
+  resolved_at?: string | null;
+  settled?: boolean;
+  settled_at?: string | null;
+  awarded?: boolean;
+  stake_points?: number | null;
+}
+
 interface EIP712Types {
   EIP712Domain: Array<{ name: string; type: string }>;
   Record: Array<{ name: string; type: string }>;
@@ -412,7 +471,7 @@ export async function GET(req: NextRequest) {
     console.log("[predictions GET] Query params:", { user, periodId, marketId });
 
     // Fetch Kalshi predictions
-    let kalshiPredictions: any[] = [];
+    let kalshiPredictions: CombinedPrediction[] = [];
     if (!marketId || !marketId.startsWith("base-daily-")) {
       let q = supabaseAdmin.from("predictions").select("*", { count: "exact" }).order("created_at", { ascending: false });
       if (user) {
@@ -438,30 +497,21 @@ export async function GET(req: NextRequest) {
         }, { status: 500 });
       }
       
-      kalshiPredictions = (data || []).map((p: any) => ({
+      kalshiPredictions = (data || []).map((p: KalshiPrediction) => ({
         ...p,
-        prediction_type: "kalshi",
+        prediction_type: "kalshi" as const,
         source: "predictions",
       }));
     }
 
     // Fetch Base Daily predictions
-    let baseDailyPredictions: any[] = [];
+    let baseDailyPredictions: CombinedPrediction[] = [];
     if (user && (!marketId || marketId.startsWith("base-daily-"))) {
       
       // Get all Base Daily entries for the user
       let baseQ = supabaseAdmin
         .from("base_daily_entries")
-        .select(`
-          *,
-          base_daily_outcomes!left(
-            session_id,
-            market_id,
-            outcome_yes,
-            resolved_at,
-            awarded
-          )
-        `)
+        .select("*")
         .eq("user_address", user)
         .order("created_at", { ascending: false });
       
@@ -476,20 +526,20 @@ export async function GET(req: NextRequest) {
         // Don't fail completely, just log and continue
       } else if (baseData) {
         // Get outcomes separately for better join
-        const sessionIds = [...new Set(baseData.map((e: any) => e.session_id))];
+        const sessionIds = [...new Set((baseData as BaseDailyEntry[]).map((e) => e.session_id))];
         const { data: outcomesData } = await supabaseAdmin
           .from("base_daily_outcomes")
           .select("*")
           .in("session_id", sessionIds);
         
-        const outcomesMap = new Map<string, any>();
+        const outcomesMap = new Map<string, BaseDailyOutcome>();
         if (outcomesData) {
-          outcomesData.forEach((o: any) => {
+          (outcomesData as BaseDailyOutcome[]).forEach((o) => {
             outcomesMap.set(`${o.session_id}:${o.market_id}`, o);
           });
         }
         
-        baseDailyPredictions = baseData.map((entry: any) => {
+        baseDailyPredictions = (baseData as BaseDailyEntry[]).map((entry) => {
           const outcome = outcomesMap.get(`${entry.session_id}:${entry.market_id}`);
           const market = BASE_DAILY_MARKETS.find((m) => m.id === entry.market_id);
           const won = outcome ? (entry.side_yes === outcome.outcome_yes) : null;
@@ -502,7 +552,7 @@ export async function GET(req: NextRequest) {
             market_ticker: `BASE-DAILY-${entry.market_id.toUpperCase()}`,
             side_yes: entry.side_yes,
             created_at: entry.created_at,
-            prediction_type: "base_daily",
+            prediction_type: "base_daily" as const,
             source: "base_daily_entries",
             session_id: entry.session_id,
             // Outcome information (map to match Kalshi prediction format)

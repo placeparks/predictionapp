@@ -77,17 +77,6 @@ function positionForMinter(m: Minter, i: number, total: number): THREE.Vector3 {
   return new THREE.Vector3(x, y, z).multiplyScalar(RADIUS + 0.05);
 }
 
-function formatDateShort(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function NeuralArcs() {
   // faint neural wires orbiting the globe
   const group = useRef<THREE.Group>(null);
@@ -295,19 +284,22 @@ function ShardSprite({
 
   // Store minter data in the object for hover detection and add to refs array
   useEffect(() => {
-    if (pointsRef.current) {
-      pointsRef.current.userData.minterIndex = index;
-      pointsRef.current.userData.minter = minter;
+    const currentPointsRef = pointsRef.current;
+    const currentShardRefs = shardRefs.current;
+    
+    if (currentPointsRef) {
+      currentPointsRef.userData.minterIndex = index;
+      currentPointsRef.userData.minter = minter;
       // Add to shard refs array if not already there
-      if (!shardRefs.current.includes(pointsRef.current)) {
-        shardRefs.current.push(pointsRef.current);
+      if (!currentShardRefs.includes(currentPointsRef)) {
+        currentShardRefs.push(currentPointsRef);
       }
     }
     return () => {
-      if (pointsRef.current) {
-        const idx = shardRefs.current.indexOf(pointsRef.current);
+      if (currentPointsRef) {
+        const idx = currentShardRefs.indexOf(currentPointsRef);
         if (idx > -1) {
-          shardRefs.current.splice(idx, 1);
+          currentShardRefs.splice(idx, 1);
         }
       }
     };
