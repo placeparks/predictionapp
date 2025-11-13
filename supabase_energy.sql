@@ -1,5 +1,6 @@
 -- Energy system for predictions
--- Replaces points system with energy that refills every 15 minutes
+-- Energy refills 10 units every 15 minutes for regular users
+-- Tier 4/5 NFT holders get 10 units every 10 minutes
 
 -- Energy balances table
 CREATE TABLE IF NOT EXISTS energy_balances (
@@ -26,7 +27,8 @@ CREATE TRIGGER trg_energy_normalize
   FOR EACH ROW EXECUTE FUNCTION normalize_energy_address();
 
 -- Function to calculate current energy with refill
--- Energy refills 1 unit every 15 minutes (900 seconds)
+-- Energy refills 10 units every 15 minutes (900 seconds) for regular users
+-- Tier 4/5 NFT holders get 10 units every 10 minutes (600 seconds)
 -- Returns the current energy after applying refills
 CREATE OR REPLACE FUNCTION get_current_energy(p_user TEXT)
 RETURNS NUMERIC AS $$
@@ -38,6 +40,9 @@ DECLARE
   v_seconds_elapsed NUMERIC;
   v_energy_to_add NUMERIC;
   v_new_energy NUMERIC;
+  v_refill_interval NUMERIC;
+  v_refill_amount NUMERIC;
+  v_minted_tier INTEGER;
 BEGIN
   -- Get or create user energy record
   INSERT INTO energy_balances(user_address, energy, max_energy, last_refill_at)
@@ -55,12 +60,28 @@ BEGIN
     RETURN 100;
   END IF;
   
+  -- Check if user has tier 4 or 5 NFT
+  SELECT minted_tier INTO v_minted_tier
+  FROM eligibility
+  WHERE address = LOWER(p_user);
+  
+  -- Set refill rate based on NFT tier
+  -- Tier 4/5: 10 energy every 10 minutes (600 seconds)
+  -- Others: 10 energy every 15 minutes (900 seconds)
+  IF v_minted_tier IS NOT NULL AND v_minted_tier >= 4 THEN
+    v_refill_interval := 600; -- 10 minutes
+    v_refill_amount := 10;
+  ELSE
+    v_refill_interval := 900; -- 15 minutes
+    v_refill_amount := 10;
+  END IF;
+  
   v_now := NOW();
   v_seconds_elapsed := EXTRACT(EPOCH FROM (v_now - v_last_refill));
   
-  -- Energy refills 1 unit every 15 minutes (900 seconds)
-  -- Calculate how much energy to add
-  v_energy_to_add := FLOOR(v_seconds_elapsed / 900);
+  -- Calculate how many refill cycles have passed
+  -- Each cycle gives v_refill_amount energy
+  v_energy_to_add := FLOOR(v_seconds_elapsed / v_refill_interval) * v_refill_amount;
   
   -- Cap at max energy
   v_new_energy := LEAST(v_energy + v_energy_to_add, v_max_energy);
@@ -70,7 +91,7 @@ BEGIN
     UPDATE energy_balances
     SET 
       energy = v_new_energy,
-      last_refill_at = v_last_refill + (v_energy_to_add * INTERVAL '15 minutes'),
+      last_refill_at = v_last_refill + (FLOOR(v_seconds_elapsed / v_refill_interval) * (v_refill_interval || ' seconds')::INTERVAL),
       updated_at = v_now
     WHERE user_address = LOWER(p_user);
     
@@ -123,6 +144,10 @@ DECLARE
   v_seconds_elapsed NUMERIC;
   v_seconds_until_next_refill NUMERIC;
   v_current_energy NUMERIC;
+  v_refill_interval NUMERIC;
+  v_refill_amount NUMERIC;
+  v_minted_tier INTEGER;
+  v_refill_cycles_passed NUMERIC;
 BEGIN
   -- Get or create user energy record
   INSERT INTO energy_balances(user_address, energy, max_energy, last_refill_at)
@@ -135,11 +160,27 @@ BEGIN
   FROM energy_balances
   WHERE user_address = LOWER(p_user);
   
+  -- Check if user has tier 4 or 5 NFT
+  SELECT minted_tier INTO v_minted_tier
+  FROM eligibility
+  WHERE address = LOWER(p_user);
+  
+  -- Set refill rate based on NFT tier
+  -- Tier 4/5: 10 energy every 10 minutes (600 seconds)
+  -- Others: 10 energy every 15 minutes (900 seconds)
+  IF v_minted_tier IS NOT NULL AND v_minted_tier >= 4 THEN
+    v_refill_interval := 600; -- 10 minutes
+    v_refill_amount := 10;
+  ELSE
+    v_refill_interval := 900; -- 15 minutes
+    v_refill_amount := 10;
+  END IF;
+  
   IF v_energy IS NULL THEN
     RETURN jsonb_build_object(
       'energy', 100,
       'max_energy', 100,
-      'next_refill_in', 900,
+      'next_refill_in', v_refill_interval,
       'is_full', true
     );
   END IF;
@@ -147,14 +188,17 @@ BEGIN
   v_now := NOW();
   v_seconds_elapsed := EXTRACT(EPOCH FROM (v_now - v_last_refill));
   
+  -- Calculate how many refill cycles have passed
+  v_refill_cycles_passed := FLOOR(v_seconds_elapsed / v_refill_interval);
+  
   -- Calculate current energy with refills
-  v_current_energy := LEAST(v_energy + FLOOR(v_seconds_elapsed / 900), v_max_energy);
+  v_current_energy := LEAST(v_energy + (v_refill_cycles_passed * v_refill_amount), v_max_energy);
   
   -- Calculate seconds until next refill
   IF v_current_energy >= v_max_energy THEN
     v_seconds_until_next_refill := 0;
   ELSE
-    v_seconds_until_next_refill := 900 - (v_seconds_elapsed % 900);
+    v_seconds_until_next_refill := v_refill_interval - (v_seconds_elapsed % v_refill_interval);
   END IF;
   
   -- Update if energy increased
@@ -162,7 +206,7 @@ BEGIN
     UPDATE energy_balances
     SET 
       energy = v_current_energy,
-      last_refill_at = v_last_refill + (FLOOR(v_seconds_elapsed / 900) * INTERVAL '15 minutes'),
+      last_refill_at = v_last_refill + (v_refill_cycles_passed * (v_refill_interval || ' seconds')::INTERVAL),
       updated_at = v_now
     WHERE user_address = LOWER(p_user);
   END IF;

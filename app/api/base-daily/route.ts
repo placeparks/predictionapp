@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ 
             ok: false, 
             error: "insufficient_energy", 
-            message: `You have ${currentEnergy} energy but need ${ENERGY_COST} energy to make a prediction. Energy refills every 15 minutes.` 
+            message: `You have ${currentEnergy} energy but need ${ENERGY_COST} energy to make a prediction. Energy refills 10 units every 15 minutes (Tier 4/5: every 10 minutes).` 
           }, { status: 402 });
         }
         

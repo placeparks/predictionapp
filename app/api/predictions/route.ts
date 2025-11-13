@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ 
           ok: false, 
           error: "insufficient_energy", 
-          message: `You have ${currentEnergy} energy but need ${ENERGY_COST} energy to make a prediction. Energy refills every 15 minutes.` 
+          message: `You have ${currentEnergy} energy but need ${ENERGY_COST} energy to make a prediction. Energy refills 10 units every 15 minutes (Tier 4/5: every 10 minutes).` 
         }, { status: 402 });
       }
     } catch (rpcErr) {
@@ -204,11 +204,16 @@ export async function POST(req: NextRequest) {
               if (!createError && createResult?.ok) {
                 console.log(`[predictions] Created referral for ${message.user} from referral code ${referralCode}`);
                 // Process rewards immediately
-                await supabaseAdmin.rpc("process_referral_rewards", {
-                  p_referred_address: message.user.toLowerCase(),
-                }).catch((rewardErr) => {
+                try {
+                  const { error: rewardError } = await supabaseAdmin.rpc("process_referral_rewards", {
+                    p_referred_address: message.user.toLowerCase(),
+                  });
+                  if (rewardError) {
+                    console.warn("Referral reward processing failed (non-fatal):", rewardError);
+                  }
+                } catch (rewardErr) {
                   console.warn("Referral reward processing failed (non-fatal):", rewardErr);
-                });
+                }
               } else if (createError) {
                 // Non-fatal: referral creation failed, but prediction should continue
                 console.warn("Referral creation failed (non-fatal):", createError.message);
@@ -233,11 +238,16 @@ export async function POST(req: NextRequest) {
                 if (!createError && createResult?.ok) {
                   console.log(`[predictions] Created referral for ${message.user} from referrer ${referrerAddress}`);
                   // Process rewards immediately
-                  await supabaseAdmin.rpc("process_referral_rewards", {
-                    p_referred_address: message.user.toLowerCase(),
-                  }).catch((rewardErr) => {
+                  try {
+                    const { error: rewardError } = await supabaseAdmin.rpc("process_referral_rewards", {
+                      p_referred_address: message.user.toLowerCase(),
+                    });
+                    if (rewardError) {
+                      console.warn("Referral reward processing failed (non-fatal):", rewardError);
+                    }
+                  } catch (rewardErr) {
                     console.warn("Referral reward processing failed (non-fatal):", rewardErr);
-                  });
+                  }
                 } else if (createError) {
                   // Non-fatal: referral creation failed, but prediction should continue
                   console.warn("Referral creation failed (non-fatal):", createError.message);

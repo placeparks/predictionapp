@@ -321,8 +321,23 @@ async function handleAutoResolve(
       gasSavings: metricsMap["gas-savings"] ?? 95,
     };
 
+    type MarketResolutionResult =
+      | {
+          marketId: string;
+          skipped: true;
+          reason: string;
+          error?: string;
+        }
+      | {
+          marketId: string;
+          outcome: "yes" | "no";
+          success: boolean;
+          awardedCount?: number;
+          error?: string;
+        };
+
     const results = await Promise.all(
-      BASE_DAILY_MARKETS.map(async (market) => {
+      BASE_DAILY_MARKETS.map(async (market): Promise<MarketResolutionResult> => {
         if (resolvedMarkets.has(market.id) && awardedMarkets.has(market.id)) {
           return {
             marketId: market.id,
@@ -359,10 +374,15 @@ async function handleAutoResolve(
       })
     );
 
-    const successful = results.filter((r: any) => r.success).length;
-    const skipped = results.filter((r: any) => r.skipped).length;
+    const successful = results.filter((r): r is Extract<MarketResolutionResult, { success: boolean }> => 
+      "success" in r && r.success
+    ).length;
+    const skipped = results.filter((r): r is Extract<MarketResolutionResult, { skipped: true }> => 
+      "skipped" in r && r.skipped
+    ).length;
     const failed = results.filter(
-      (r: any) => !r.success && !r.skipped
+      (r): r is Extract<MarketResolutionResult, { success: boolean }> => 
+        "success" in r && !r.success && !("skipped" in r)
     ).length;
 
     return NextResponse.json({

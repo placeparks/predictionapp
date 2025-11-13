@@ -643,7 +643,7 @@ export default function ReferralsPage() {
           {data.genesis.genesis_ring_unlocked ? (
             <div>
               <p style={{ color: '#fff', marginBottom: '0.5rem' }}>
-                🎉 Congratulations! You've unlocked the Genesis Ring!
+                🎉 Congratulations! You&apos;ve unlocked the Genesis Ring!
               </p>
               <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
                 You now earn <strong style={{ color: '#FFD700' }}>3x BET tokens</strong> on all your wins! 

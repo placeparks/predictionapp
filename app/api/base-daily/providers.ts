@@ -2,6 +2,9 @@
 
 export type DataProvider = "basescan" | "defillama" | "reservoir" | "alchemy" | "none";
 
+// BaseScan API response item type
+type BaseScanResponseItem = Record<string, unknown>;
+
 export interface ProviderResult<T> {
   success: boolean;
   data?: T;
@@ -64,14 +67,15 @@ export class BaseScanProvider {
       let txCount = 0;
 
       if (Array.isArray(result)) {
-        txCount = result.reduce((sum: number, item: any) => {
+        txCount = result.reduce((sum: number, item: BaseScanResponseItem) => {
           const raw = item.txCount ?? item.transactionCount;
-          const count = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+          const count = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
           return sum + count;
         }, 0);
       } else if (result && typeof result === "object") {
-        const raw = (result as any).txCount ?? (result as any).transactionCount;
-        txCount = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+        const resultObj = result as BaseScanResponseItem;
+        const raw = resultObj.txCount ?? resultObj.transactionCount;
+        txCount = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
       }
 
       return { success: true, data: txCount, source: "basescan" };
@@ -93,14 +97,15 @@ export class BaseScanProvider {
       let addressCount = 0;
 
       if (Array.isArray(result)) {
-        addressCount = result.reduce((sum: number, item: any) => {
+        addressCount = result.reduce((sum: number, item: BaseScanResponseItem) => {
           const raw = item.newAddressCount ?? item.newAddress;
-          const count = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+          const count = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
           return sum + count;
         }, 0);
       } else if (result && typeof result === "object") {
-        const raw = (result as any).newAddressCount ?? (result as any).newAddress;
-        addressCount = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+        const resultObj = result as BaseScanResponseItem;
+        const raw = resultObj.newAddressCount ?? resultObj.newAddress;
+        addressCount = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
       }
 
       return { success: true, data: addressCount, source: "basescan" };
@@ -122,14 +127,15 @@ export class BaseScanProvider {
       let contractCount = 0;
 
       if (Array.isArray(result)) {
-        contractCount = result.reduce((sum: number, item: any) => {
+        contractCount = result.reduce((sum: number, item: BaseScanResponseItem) => {
           const raw = item.newContractCount ?? item.newContracts;
-          const count = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+          const count = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
           return sum + count;
         }, 0);
       } else if (result && typeof result === "object") {
-        const raw = (result as any).newContractCount ?? (result as any).newContracts;
-        contractCount = typeof raw === "string" ? parseInt(raw, 10) : (raw || 0);
+        const resultObj = result as BaseScanResponseItem;
+        const raw = resultObj.newContractCount ?? resultObj.newContracts;
+        contractCount = typeof raw === "string" ? parseInt(raw, 10) : (typeof raw === "number" ? raw : 0);
       }
 
       return { success: true, data: contractCount, source: "basescan" };
@@ -152,9 +158,9 @@ export class BaseScanProvider {
 
       if (Array.isArray(result)) {
         const prices = result
-          .map((item: any) => {
+          .map((item: BaseScanResponseItem) => {
             const raw = item.avgGasPrice ?? item.averageGasPrice;
-            return typeof raw === "string" ? parseFloat(raw) : (raw || 0);
+            return typeof raw === "string" ? parseFloat(raw) : (typeof raw === "number" ? raw : 0);
           })
           .filter((p: number) => p > 0);
         avgGasPrice =
@@ -162,8 +168,9 @@ export class BaseScanProvider {
             ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length
             : 0;
       } else if (result && typeof result === "object") {
-        const raw = (result as any).avgGasPrice ?? (result as any).averageGasPrice;
-        avgGasPrice = typeof raw === "string" ? parseFloat(raw) : (raw || 0);
+        const resultObj = result as BaseScanResponseItem;
+        const raw = resultObj.avgGasPrice ?? resultObj.averageGasPrice;
+        avgGasPrice = typeof raw === "string" ? parseFloat(raw) : (typeof raw === "number" ? raw : 0);
       }
 
       // Assume gwei unless docs say otherwise

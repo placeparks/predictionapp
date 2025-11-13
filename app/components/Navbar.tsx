@@ -183,7 +183,7 @@ export default function Navbar() {
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
-  const isPointsPage = pathname === '/points';
+  const _isPointsPage = pathname === '/points'; // Used in commented code
   const isGlobePage = pathname === '/globe';
   const isBaseDailyPage = pathname === '/base-daily';
   const isReferralsPage = pathname === '/referrals';
@@ -565,9 +565,9 @@ export default function Navbar() {
             }}>Forecast Engine</Link>
        { /*    <Link href="/points" onClick={() => setMobileMenuOpen(false)} style={{
               textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 8,
-              background: isPointsPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-              border: isPointsPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
-              color: isPointsPage ? '#FFD700' : '#FFD700',
+              background: _isPointsPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+              border: _isPointsPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
+              color: _isPointsPage ? '#FFD700' : '#FFD700',
               textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.875rem', fontWeight: 600,
               transition: 'all 0.2s', whiteSpace: 'nowrap'
             }}>BET Tokens</Link> */}
@@ -638,7 +638,7 @@ export default function Navbar() {
               >Portfolio</button>
          {  /*   <Link
                 href="/points"
-                className={`mobile-menu-item ${isPointsPage ? 'active' : ''}`}
+                className={`mobile-menu-item ${_isPointsPage ? 'active' : ''}`}
                 onClick={() => setMobileMenuOpen(false)}
                 style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer', fontFamily: 'inherit' }}
               >BET Tokens</Link> */}

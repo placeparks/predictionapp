@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
       }
 
       let result;
-      let referrerAddress: string | null = null;
+      let _referrerAddress: string | null = null; // Unused but kept for potential future use
 
       if (referralCode && typeof referralCode === "string" && referralCode.trim().length > 0) {
         // Use referral code system
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
         }
 
         result = data;
-        referrerAddress = data.referrer_address;
+        _referrerAddress = data.referrer_address;
       } else {
         // Fallback to old system (direct wallet address) for backward compatibility
         const referrer = (body?.referrer || "").toLowerCase();
@@ -199,28 +199,28 @@ export async function POST(req: NextRequest) {
         }
 
         result = data;
-        referrerAddress = referrer;
+        _referrerAddress = referrer;
       }
 
       // Process rewards immediately
-      let rewardResult = { data: null, error: null };
+      let rewardData: unknown = null;
       try {
         const rewardResponse = await supabaseAdmin.rpc("process_referral_rewards", {
           p_referred_address: referred,
         });
-        rewardResult = rewardResponse;
         if (rewardResponse.error) {
           console.warn("[referrals] Reward processing failed (non-fatal):", rewardResponse.error);
+        } else {
+          rewardData = rewardResponse.data;
         }
       } catch (err) {
         console.warn("[referrals] Reward processing failed (non-fatal):", err);
-        rewardResult = { data: null, error: err };
       }
 
       return NextResponse.json({
         ok: true,
         referral: result,
-        rewards: rewardResult.data,
+        rewards: rewardData,
       });
     }
   } catch (e) {

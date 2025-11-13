@@ -310,9 +310,23 @@ function ShardSprites({ data }: { data: Minter[] }) {
 }
 
 function GlobeCore() {
+  // Reduce geometry complexity on mobile for better performance
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+  
+  const segments = isMobile ? 32 : 64;
+  
   return (
     <mesh>
-      <sphereGeometry args={[RADIUS, 64, 64]} />
+      <sphereGeometry args={[RADIUS, segments, segments]} />
       <meshStandardMaterial
         color="#172e57"
         roughness={0.65}
@@ -332,10 +346,12 @@ function useHover(rtc: React.MutableRefObject<THREE.InstancedMesh | null>) {
 
   useEffect(() => {
     const el = gl.domElement;
-    const onMove = (e: MouseEvent) => {
+    const isMobile = window.innerWidth < 768;
+    
+    const updateHover = (clientX: number, clientY: number) => {
       const rect = el.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       if (!rtc.current) return setHover(null);
       raycaster.setFromCamera(mouse, camera);
       const hit = raycaster.intersectObject(rtc.current, true)[0];
@@ -344,19 +360,44 @@ function useHover(rtc: React.MutableRefObject<THREE.InstancedMesh | null>) {
           index: hit.instanceId,
           x: hit.point.x,
           y: hit.point.y,
-          screenX: e.clientX - rect.left,
-          screenY: e.clientY - rect.top,
+          screenX: clientX - rect.left,
+          screenY: clientY - rect.top,
         });
       } else {
         setHover(null);
       }
     };
+    
+    const onMove = (e: MouseEvent) => {
+      updateHover(e.clientX, e.clientY);
+    };
+    
+    const onTouch = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        updateHover(touch.clientX, touch.clientY);
+      } else {
+        setHover(null);
+      }
+    };
+    
     const onLeave = () => setHover(null);
+    
     el.addEventListener("mousemove", onMove);
     el.addEventListener("mouseleave", onLeave);
+    if (isMobile) {
+      el.addEventListener("touchmove", onTouch, { passive: false });
+      el.addEventListener("touchend", onLeave);
+    }
+    
     return () => {
       el.removeEventListener("mousemove", onMove);
       el.removeEventListener("mouseleave", onLeave);
+      if (isMobile) {
+        el.removeEventListener("touchmove", onTouch);
+        el.removeEventListener("touchend", onLeave);
+      }
     };
   }, [camera, gl, mouse, raycaster, rtc]);
 
@@ -494,21 +535,30 @@ function MintersPoints({ data }: { data: Minter[] }) {
           zIndexRange={[1000, 1000]}
           style={{
             position: "absolute",
-            left: hoverXY.x,
-            top: hoverXY.y,
+            left: typeof window !== "undefined" && window.innerWidth < 768 
+              ? Math.max(10, Math.min(hoverXY.x, window.innerWidth - 200))
+              : hoverXY.x,
+            top: typeof window !== "undefined" && window.innerWidth < 768
+              ? Math.max(10, hoverXY.y - 150)
+              : hoverXY.y,
             pointerEvents: "none",
+            transform: typeof window !== "undefined" && window.innerWidth < 768
+              ? "translateY(-100%)"
+              : "none",
           }}
         >
           <div
             style={{
-              background: "rgba(2,6,23,0.9)",
+              background: "rgba(2,6,23,0.95)",
               border: "1px solid rgba(99,102,241,0.35)",
               borderRadius: 10,
-              padding: "8px 10px",
+              padding: "clamp(6px, 2vw, 10px) clamp(8px, 2.5vw, 12px)",
               color: "#e2e8f0",
-              minWidth: 220,
+              minWidth: "clamp(180px, 50vw, 220px)",
+              maxWidth: "90vw",
               boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
-              fontSize: 12,
+              fontSize: "clamp(11px, 3vw, 12px)",
+              lineHeight: 1.4,
             }}
           >
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
@@ -541,6 +591,16 @@ function MintersPoints({ data }: { data: Minter[] }) {
 export default function NeuralGlobe() {
   const [minters, setMinters] = useState<Minter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -555,12 +615,13 @@ export default function NeuralGlobe() {
   }, []);
 
   const showEmpty = !loading && minters.length === 0;
-
+  
   return (
     <div
       style={{
         width: "100%",
-        height: "70vh",
+        height: isMobile ? "60vh" : "70vh",
+        minHeight: isMobile ? "400px" : "500px",
         borderRadius: 16,
         overflow: "hidden",
         border: "1px solid rgba(99,102,241,0.25)",
@@ -604,7 +665,11 @@ export default function NeuralGlobe() {
           No minters yet. As shards make correct predictions their nodes will illuminate here.
         </div>
       )}
-      <Canvas camera={{ position: [0, 0, 20], fov: 50 }} dpr={[1, 2]}>
+      <Canvas 
+        camera={{ position: [0, 0, 20], fov: 50 }} 
+        dpr={isMobile ? [1, 1.5] : [1, 2]}
+        gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
+      >
         <ambientLight intensity={0.4} />
         <hemisphereLight args={["#cbd5f5", "#0b1120", 0.55]} />
         <directionalLight position={[6, 7, 8]} intensity={0.85} color="#93c5fd" />
@@ -613,7 +678,16 @@ export default function NeuralGlobe() {
         <NeuralArcs />
         <MintersPoints data={minters} />
         <ShardSprites data={minters} />
-        <OrbitControls enablePan={false} rotateSpeed={0.5} zoomSpeed={0.7} minDistance={12} maxDistance={35} />
+        <OrbitControls 
+          enablePan={false} 
+          rotateSpeed={isMobile ? 0.3 : 0.5} 
+          zoomSpeed={isMobile ? 0.5 : 0.7} 
+          minDistance={12} 
+          maxDistance={35}
+          enableDamping={true}
+          dampingFactor={0.05}
+          touches={{ ONE: 2, TWO: 1 }}
+        />
       </Canvas>
     </div>
   );

@@ -533,6 +533,11 @@ export default function BaseDailyPredictions() {
           }}
         >
           {error}
+          {/insufficient.*energy|energy.*insufficient/i.test(error) && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", opacity: 0.9 }}>
+              💡 Energy refills 10 units every 15 minutes (Tier 4/5 NFT holders: every 10 minutes)
+            </div>
+          )}
         </div>
       )}
 

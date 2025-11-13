@@ -313,9 +313,10 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
   }, []);
 
   useEffect(() => {
+    const timeouts = pulseTimeoutRef.current;
     return () => {
       if (typeof window === "undefined") return;
-      Object.values(pulseTimeoutRef.current).forEach((timeoutId) => {
+      Object.values(timeouts).forEach((timeoutId) => {
         window.clearTimeout(timeoutId);
       });
     };
@@ -544,7 +545,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
       }
       // Check energy before submitting
       if (energy < ENERGY_COST) {
-        setPredictError(`You need ${ENERGY_COST} energy to make a prediction. You have ${energy} energy. Energy refills every 15 minutes.`);
+        setPredictError(`You need ${ENERGY_COST} energy to make a prediction. You have ${energy} energy. Energy refills 10 units every 15 minutes (Tier 4/5: every 10 minutes).`);
         return;
       }
       const REGISTRY = process.env.NEXT_PUBLIC_FORECAST_REGISTRY;
@@ -601,7 +602,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
         if (storedRef && storedRef.trim().length > 0) {
           referralCode = storedRef.trim();
         }
-      } catch (e) {
+      } catch {
         // localStorage access failed, ignore
       }
 

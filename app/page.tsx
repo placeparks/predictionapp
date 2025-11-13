@@ -5,6 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId,
 import { createPublicClient, http } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { TrendingUp, Flame, Zap, Award } from 'lucide-react';
+import Image from 'next/image';
 import KalshiPredictions from './components/KalshiPredictions';
 import FAQ from './components/FAQ';
 import PredictionsDashboard from './components/PredictionsDashboard';
@@ -88,7 +89,7 @@ function HomeContent() {
   const { address: wagmiAddress, isConnected } = useAccount();
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null); // Error state for future error display
   const [data, setData] = useState<StatsData | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'predictions' | 'dashboard' | 'faq'>("home");
   const [showFAQ, setShowFAQ] = useState<boolean>(false);
@@ -216,7 +217,7 @@ function HomeContent() {
       } else {
         setReferralError(json.message || json.error || "Failed to submit referral code");
       }
-    } catch (err) {
+    } catch {
       setReferralError("Failed to submit referral code. Please try again.");
     } finally {
       setReferralProcessing(false);
@@ -749,9 +750,12 @@ function HomeContent() {
                       zIndex: 1
                     }}>
                       {mintedTokenId !== null ? (
-                        <img
+                        <Image
                           src={`/api/image/${mintedTokenId}.png`}
                           alt="NFT"
+                          width={300}
+                          height={300}
+                          unoptimized
                           style={{
                             width: '100%',
                             height: '100%',
@@ -975,7 +979,7 @@ function HomeContent() {
                     Get <span style={{ color: '#FFD700', fontWeight: 800 }}>50 BET Tokens</span> when you use a referral code!
                   </p>
                   <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
-                    Paste your friend's referral link or code (PROPH-XXXXX)
+                    Paste your friend&apos;s referral link or code (PROPH-XXXXX)
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
@@ -1063,7 +1067,7 @@ function HomeContent() {
                     textAlign: 'center',
                     marginTop: '0.5rem'
                   }}>
-                    You can skip this step if you don't have a referral code
+                    You can skip this step if you don&apos;t have a referral code
                   </p>
                 </div>
               </div>
@@ -1087,7 +1091,7 @@ function HomeContent() {
                       Referral Code Applied!
                     </p>
                     <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
-                      You'll receive 50 BET tokens when you make your first prediction
+                      You&apos;ll receive 50 BET tokens when you make your first prediction
                     </p>
                   </div>
                 </div>
