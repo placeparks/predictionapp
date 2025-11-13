@@ -131,14 +131,18 @@ export class AlchemyProvider {
       const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Get transfers for the day with pagination
+      // Use "latest" for toBlock if the date is today or in the future
+      const now = Math.floor(Date.now() / 1000);
+      const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
+      
       const uniqueAddresses = new Set<string>();
       let pageKey: string | undefined = undefined;
-      let maxPages = 10; // Limit to avoid too many requests
+      let maxPages = 50; // Increased limit for more complete data
 
       do {
         const params: Record<string, unknown> = {
-          fromBlock: `0x${estimatedStartBlock.toString(16)}`,
-          toBlock: `0x${estimatedEndBlock.toString(16)}`,
+          fromBlock: isTodayOrFuture ? "0x0" : `0x${estimatedStartBlock.toString(16)}`,
+          toBlock: isTodayOrFuture ? "latest" : `0x${estimatedEndBlock.toString(16)}`,
           category: ["external", "erc20", "erc721", "erc1155"],
           withMetadata: true,
           maxCount: "0x3e8", // 1000 transfers per page
@@ -156,6 +160,7 @@ export class AlchemyProvider {
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
               : null;
             
+            // Only count addresses within the target date range
             if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
               if (transfer.from && transfer.from !== "0x0000000000000000000000000000000000000000") {
                 uniqueAddresses.add(transfer.from.toLowerCase());
@@ -194,14 +199,18 @@ export class AlchemyProvider {
       const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Get transfers with pagination
+      // Use "latest" for toBlock if the date is today or in the future
+      const now = Math.floor(Date.now() / 1000);
+      const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
+      
       const uniqueContracts = new Set<string>();
       let pageKey: string | undefined = undefined;
-      let maxPages = 10;
+      let maxPages = 50; // Increased limit for more complete data
 
       do {
         const params: Record<string, unknown> = {
-          fromBlock: `0x${estimatedStartBlock.toString(16)}`,
-          toBlock: `0x${estimatedEndBlock.toString(16)}`,
+          fromBlock: isTodayOrFuture ? "0x0" : `0x${estimatedStartBlock.toString(16)}`,
+          toBlock: isTodayOrFuture ? "latest" : `0x${estimatedEndBlock.toString(16)}`,
           category: ["external"],
           withMetadata: true,
           maxCount: "0x3e8",
@@ -209,7 +218,7 @@ export class AlchemyProvider {
         if (pageKey) params.pageKey = pageKey;
 
         const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
-          transfers?: Array<{ to?: string | null; metadata?: { blockTimestamp?: string } }>;
+          transfers?: Array<{ to?: string | null; hash?: string; metadata?: { blockTimestamp?: string } }>;
           pageKey?: string;
         };
 
@@ -219,12 +228,13 @@ export class AlchemyProvider {
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
               : null;
             
+            // Only count contracts within the target date range
             if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
               // Contract creation: to is null or zero address
+              // Use hash as unique identifier if available, otherwise use a combination
               if (!transfer.to || transfer.to === "0x0000000000000000000000000000000000000000") {
-                // Use transaction hash as unique identifier (we'd need to get it from the transfer)
-                // For now, count each transfer as a potential contract creation
-                uniqueContracts.add(`${blockTime}-${transfer.to || 'null'}`);
+                const identifier = transfer.hash || `${blockTime}-${transfer.to || 'null'}`;
+                uniqueContracts.add(identifier);
               }
             }
           }
