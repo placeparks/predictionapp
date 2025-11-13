@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/base-daily/auto-resolve",
+      "schedule": "*/25 * * * *"
+    },
+    {
+      "path": "/api/settle/check",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}
+
+

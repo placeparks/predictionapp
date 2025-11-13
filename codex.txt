@@ -1,0 +1,129 @@
+**Context**
+
+* We already deployed the **Base Mini App quickstart** to Vercel and cloned it locally.
+* We’ve set up **Supabase** and created the base tables for `wallet_stats` and `eligibility`.
+* This project must remain a **Base Mini App** (MiniKit/OnchainKit) — **do not convert to a full browser dapp**.
+
+**Goal (Phase-1)**
+Build the **stats pipeline** so that, inside the Mini App, when a user connects their wallet with **Coinbase OnchainKit/MiniKit**, the app:
+
+1. Reads the user’s Base wallet address from MiniKit,
+2. Calls our `/api/stats?address=0x…` backend route,
+3. Displays **tier**, **animal name**, and basic stats: transactions, unique counterparties, ERC-20 count, NFT count, NFT collections.
+
+**Strict Scope / Guardrails**
+
+* **Stay Mini App first.** Use **MiniKit** for wallet connection. No RainbowKit/Wagmi connect modal here.
+* Chain: **Base Sepolia (84532)** for dev. Keep chain switching off unless necessary.
+* Backend = Next.js **Route Handlers** only (no separate servers).
+* Dependencies allowed: `@coinbase/onchainkit`, `alchemy-sdk`, `@supabase/supabase-js`, `zod`, `date-fns`.
+* No client-side eligibility decisions; the server computes tiers.
+
+**Environment (already present / to use)**
+
+```
+NEXT_PUBLIC_CHAIN_ID=84532
+ALCHEMY_API_KEY=...            # use for Base Sepolia
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE=...
+```
+
+**Supabase tables (already created)**
+
+* `wallet_stats(address PK, chain, tx_count, unique_peers, erc20_count, erc20_usd, nft_collections, nft_count, has_basename, last_indexed_at)`
+* `eligibility(address PK, tier, next_tier, last_computed_at)`
+
+**What to Build Now**
+
+1. **Wallet connect (MiniKit)**
+
+   * Use MiniKit/OnchainKit to get the connected wallet **address** inside the Mini App.
+   * Expose the address to the page component via hook/state.
+
+2. **Server route: `/app/api/stats/route.ts`**
+
+   * Input: `?address=0x…` (validate checksum/length).
+   * If cached in `wallet_stats` with `last_indexed_at < 15 minutes` → return cached snapshot.
+   * Otherwise fetch from **Alchemy** (Base Sepolia):
+
+     * Tx history (from & to) → `tx_count`
+     * Distinct counterparties set → `unique_peers`
+     * ERC-20 balances → `erc20_count` (non-zero)
+     * NFTs held → `nft_count` and `nft_collections` (distinct contract addresses)
+     * `erc20_usd` can be `0` for now; fill later.
+     * `has_basename = false` for now (wire later).
+   * Upsert `wallet_stats` + recompute `eligibility` (`tier`, `next_tier`).
+   * Response:
+
+     ```json
+     {
+       "ok": true,
+       "address": "0x…",
+       "stats": { ... },
+       "tier": 0-5,
+       "animal": "Tadpole|Fox|Wolf|Tiger|Dragon|Phoenix",
+       "cached": false
+     }
+     ```
+
+3. **Tier logic (`/lib/tier.ts`)**
+
+   * Implement `computeTier(snapshot)` and `animalFor(tier)` with thresholds:
+
+     * T1: ≥25 tx & ≥5 peers
+     * T2: ≥50 tx & ≥10 peers & ≥2 ERC-20s
+     * T3: ≥100 tx & ≥20 peers & ≥1 NFT
+     * T4: ≥250 tx & ≥40 peers & ≥5 ERC-20s & ≥2 NFT collections
+     * T5: ≥500 tx & ≥75 peers & `erc20_usd ≥ 250` & ≥3 NFT collections & `has_basename=true`
+
+4. **UI panel (Home page)**
+
+   * If no address → show “Connect wallet inside Base App.”
+   * If address → call `/api/stats` and render:
+
+     * Tier + animal label
+     * Transactions, unique peers, ERC-20 count, NFTs, collections
+     * Last updated timestamp + “cached” flag.
+   * Keep styling simple; no heavy animations yet.
+
+**Acceptance Tests**
+
+* `npm run dev` → page loads at `http://localhost:3000`.
+* Connect wallet via MiniKit inside the Mini App environment; tier and stats render.
+* `curl "http://localhost:3000/api/stats?address=0x<testAddress>"` returns `{"ok":true,...}`.
+* If you call again within 15 minutes, you get `cached:true`.
+
+**Non-goals (for now)**
+
+* No minting or contracts yet.
+* No metadata/image endpoints yet.
+* No Basename resolution, no price oracle.
+
+**Code Style**
+
+* TypeScript strict.
+* Small pure functions, no business logic in components.
+* Server routes validate inputs; never trust client.
+
+**Next Milestones (after this PR)**
+
+* `/api/metadata/:tokenId.json` and `/api/image/:tokenId.png`
+* ERC-721 evolutive contract + `/api/sign-mint`
+* Cron job to refresh stats every 15 minutes
+
+**Run Commands**
+
+```bash
+npm i
+npm run dev   # use -H 0.0.0.0 if needed
+```
+
+**Definition of Done**
+
+* Mini App keeps MiniKit connection.
+* `/api/stats` implemented, caches to Supabase, recomputes tier, returns JSON.
+* Home page shows live stats and tier for the connected address.
+* No browser-dapp libraries added; all flows remain Mini App native.
+

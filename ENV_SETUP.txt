@@ -1,0 +1,103 @@
+═══════════════════════════════════════════════════════════════════════════
+                  KALSHI API - ENVIRONMENT SETUP
+═══════════════════════════════════════════════════════════════════════════
+
+Your integration NOW supports API Key authentication (as you requested)!
+
+───────────────────────────────────────────────────────────────────────────
+📝 WHAT YOU CURRENTLY HAVE IN .env.local:
+───────────────────────────────────────────────────────────────────────────
+
+❌ KALSHI_API_KEY=... (31 chars - appears to be BEGIN/END markers only)
+
+This won't work! You need TWO things:
+
+───────────────────────────────────────────────────────────────────────────
+✅ WHAT YOU NEED TO ADD TO .env.local:
+───────────────────────────────────────────────────────────────────────────
+
+KALSHI_API_KEY_ID=your_api_key_id_from_kalshi
+KALSHI_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...
+[Your full RSA private key here - multiple lines]
+...xyz123
+-----END PRIVATE KEY-----"
+
+───────────────────────────────────────────────────────────────────────────
+🔑 HOW TO GET THESE CREDENTIALS:
+───────────────────────────────────────────────────────────────────────────
+
+1. Go to: https://kalshi.com
+2. Login to your account
+3. Navigate to: Account Settings → API Keys
+4. Click: "Create New API Key"
+5. Save BOTH:
+   - API Key ID (a string like "abc123...")
+   - Private Key (the full RSA key with BEGIN/END markers)
+
+⚠️  WARNING: The private key is shown ONLY ONCE! Save it immediately!
+
+───────────────────────────────────────────────────────────────────────────
+📋 EXAMPLE .env.local FILE:
+───────────────────────────────────────────────────────────────────────────
+
+# Kalshi API Authentication
+KALSHI_API_KEY_ID=k1sh1_abc123def456
+KALSHI_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXZK...
+[... many lines of base64 encoded data ...]
+...QDaqCd5M=
+-----END PRIVATE KEY-----"
+
+# Optional: Use demo API for testing
+# KALSHI_API_URL=https://demo-api.kalshi.co/trade-api/v2
+
+───────────────────────────────────────────────────────────────────────────
+🧪 TEST YOUR SETUP:
+───────────────────────────────────────────────────────────────────────────
+
+After adding the credentials, run:
+
+    npm run test:kalshi-api
+
+You should see:
+✅ KALSHI_API_KEY_ID: Set
+✅ KALSHI_PRIVATE_KEY: Set (1700+ chars)
+✅ Authentication successful!
+✅ Successfully fetched markets
+
+───────────────────────────────────────────────────────────────────────────
+💡 ALTERNATIVE: Email/Password (Fallback)
+───────────────────────────────────────────────────────────────────────────
+
+If you don't have API keys yet, you can use email/password temporarily:
+
+KALSHI_EMAIL=your_email@example.com
+KALSHI_PASSWORD=your_password
+
+The system will automatically use whichever credentials you provide.
+API Key authentication is preferred for production use.
+
+───────────────────────────────────────────────────────────────────────────
+📚 FULL DOCUMENTATION:
+───────────────────────────────────────────────────────────────────────────
+
+See: KALSHI_API_KEY_SETUP.md for detailed setup instructions
+
+───────────────────────────────────────────────────────────────────────────
+🚀 NEXT STEPS:
+───────────────────────────────────────────────────────────────────────────
+
+1. Get API credentials from Kalshi.com
+2. Add KALSHI_API_KEY_ID and KALSHI_PRIVATE_KEY to .env.local
+3. Run: npm run test:kalshi-api
+4. Run: npm run dev
+5. Open: http://localhost:3000
+6. Click: "Predictions" tab
+7. Enjoy live Kalshi markets! 🎉
+
+═══════════════════════════════════════════════════════════════════════════
+
+
+
+
