@@ -131,18 +131,30 @@ export class AlchemyProvider {
       const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Get transfers for the day with pagination
-      // Use "latest" for toBlock if the date is today or in the future
+      // For past dates, use a wider block range to ensure we capture all transfers
+      // Then filter by timestamp to get only the target date
       const now = Math.floor(Date.now() / 1000);
       const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
+      
+      // For past dates, expand the block range to ensure we don't miss transfers
+      // Use a wider range (2 days) to account for block estimation errors
+      const expandedStartBlock = isTodayOrFuture 
+        ? "0x0" 
+        : `0x${Math.max(0, estimatedStartBlock - blocksPerDay).toString(16)}`;
+      const expandedEndBlock = isTodayOrFuture 
+        ? "latest" 
+        : `0x${Math.min(latestBlock, estimatedEndBlock + blocksPerDay).toString(16)}`;
       
       const uniqueAddresses = new Set<string>();
       let pageKey: string | undefined = undefined;
       let maxPages = 50; // Increased limit for more complete data
+      let totalTransfers = 0;
+      let transfersInRange = 0;
 
       do {
         const params: Record<string, unknown> = {
-          fromBlock: isTodayOrFuture ? "0x0" : `0x${estimatedStartBlock.toString(16)}`,
-          toBlock: isTodayOrFuture ? "latest" : `0x${estimatedEndBlock.toString(16)}`,
+          fromBlock: expandedStartBlock,
+          toBlock: expandedEndBlock,
           category: ["external", "erc20", "erc721", "erc1155"],
           withMetadata: true,
           maxCount: "0x3e8", // 1000 transfers per page
@@ -155,6 +167,7 @@ export class AlchemyProvider {
         };
 
         if (result?.transfers) {
+          totalTransfers += result.transfers.length;
           for (const transfer of result.transfers) {
             const blockTime = transfer.metadata?.blockTimestamp 
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
@@ -162,6 +175,7 @@ export class AlchemyProvider {
             
             // Only count addresses within the target date range
             if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+              transfersInRange++;
               if (transfer.from && transfer.from !== "0x0000000000000000000000000000000000000000") {
                 uniqueAddresses.add(transfer.from.toLowerCase());
               }
@@ -175,6 +189,12 @@ export class AlchemyProvider {
         pageKey = result?.pageKey;
         maxPages--;
       } while (pageKey && maxPages > 0);
+
+      // If we got transfers but none in range, the date might be too far in the past
+      // or the block range estimation is significantly off
+      if (totalTransfers > 0 && transfersInRange === 0) {
+        console.warn(`[Alchemy] Found ${totalTransfers} transfers but none in date range ${dateStr} (${startTimestamp}-${endTimestamp})`);
+      }
 
       return { success: true, data: uniqueAddresses.size, source: "alchemy" };
     } catch (error) {
@@ -199,18 +219,28 @@ export class AlchemyProvider {
       const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
 
       // Get transfers with pagination
-      // Use "latest" for toBlock if the date is today or in the future
+      // For past dates, use a wider block range to ensure we capture all transfers
       const now = Math.floor(Date.now() / 1000);
       const isTodayOrFuture = startTimestamp >= now - 86400; // Within last 24 hours
+      
+      // For past dates, expand the block range to ensure we don't miss transfers
+      const expandedStartBlock = isTodayOrFuture 
+        ? "0x0" 
+        : `0x${Math.max(0, estimatedStartBlock - blocksPerDay).toString(16)}`;
+      const expandedEndBlock = isTodayOrFuture 
+        ? "latest" 
+        : `0x${Math.min(latestBlock, estimatedEndBlock + blocksPerDay).toString(16)}`;
       
       const uniqueContracts = new Set<string>();
       let pageKey: string | undefined = undefined;
       let maxPages = 50; // Increased limit for more complete data
+      let totalTransfers = 0;
+      let contractsInRange = 0;
 
       do {
         const params: Record<string, unknown> = {
-          fromBlock: isTodayOrFuture ? "0x0" : `0x${estimatedStartBlock.toString(16)}`,
-          toBlock: isTodayOrFuture ? "latest" : `0x${estimatedEndBlock.toString(16)}`,
+          fromBlock: expandedStartBlock,
+          toBlock: expandedEndBlock,
           category: ["external"],
           withMetadata: true,
           maxCount: "0x3e8",
@@ -223,6 +253,7 @@ export class AlchemyProvider {
         };
 
         if (result?.transfers) {
+          totalTransfers += result.transfers.length;
           for (const transfer of result.transfers) {
             const blockTime = transfer.metadata?.blockTimestamp 
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
@@ -233,6 +264,7 @@ export class AlchemyProvider {
               // Contract creation: to is null or zero address
               // Use hash as unique identifier if available, otherwise use a combination
               if (!transfer.to || transfer.to === "0x0000000000000000000000000000000000000000") {
+                contractsInRange++;
                 const identifier = transfer.hash || `${blockTime}-${transfer.to || 'null'}`;
                 uniqueContracts.add(identifier);
               }
@@ -243,6 +275,11 @@ export class AlchemyProvider {
         pageKey = result?.pageKey;
         maxPages--;
       } while (pageKey && maxPages > 0);
+
+      // If we got transfers but none in range, log a warning
+      if (totalTransfers > 0 && contractsInRange === 0) {
+        console.warn(`[Alchemy] Found ${totalTransfers} transfers but no contracts in date range ${dateStr}`);
+      }
 
       return { success: true, data: uniqueContracts.size, source: "alchemy" };
     } catch (error) {
