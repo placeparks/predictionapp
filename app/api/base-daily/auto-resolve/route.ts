@@ -304,6 +304,18 @@ async function handleAutoResolve(
       await fetchBaseMetricsForDate(dateStr);
 
     console.log("[auto-resolve] Metrics sources:", sources);
+    
+    // Log successful metrics with their values
+    const successfulMetrics: Record<string, number> = {};
+    Object.entries(metricsMap).forEach(([marketId, value]) => {
+      if (value !== null && value !== undefined) {
+        successfulMetrics[marketId] = value;
+      }
+    });
+    if (Object.keys(successfulMetrics).length > 0) {
+      console.log("[auto-resolve] Metrics values:", successfulMetrics);
+    }
+    
     if (Object.keys(errors).length > 0) {
       console.warn("[auto-resolve] Metrics errors:", errors);
     }
