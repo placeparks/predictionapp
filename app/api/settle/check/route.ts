@@ -58,7 +58,8 @@ async function handleSettleCheck(req: NextRequest) {
       .select("market_id, market_ticker")
       .eq("settled", false)
       .is("settled_at", null)
-      .not("market_ticker", "is", null);
+      .not("market_ticker", "is", null)
+      .neq("market_ticker", ""); // Also exclude empty strings
 
     if (marketsError) {
       console.error("[settle/check] Error fetching unsettled markets:", marketsError);
@@ -91,12 +92,25 @@ async function handleSettleCheck(req: NextRequest) {
     console.log(`[settle/check] Checking ${uniqueMarkets.size} markets for resolution...`);
 
     // Get Kalshi auth token
-    const token = await getKalshiToken();
-    if (!token) {
+    let token: string | null = null;
+    try {
+      token = await getKalshiToken();
+    } catch (authError) {
+      const authErrorMsg = authError instanceof Error ? authError.message : String(authError);
+      console.error("[settle/check] Error getting Kalshi token:", authErrorMsg);
       return NextResponse.json({ 
         ok: false, 
         error: "kalshi_auth_failed",
-        message: "Failed to authenticate with Kalshi API"
+        message: `Failed to authenticate with Kalshi API: ${authErrorMsg}`
+      }, { status: 500 });
+    }
+    
+    if (!token) {
+      console.error("[settle/check] Kalshi token is null");
+      return NextResponse.json({ 
+        ok: false, 
+        error: "kalshi_auth_failed",
+        message: "Failed to authenticate with Kalshi API: token is null"
       }, { status: 500 });
     }
 
@@ -116,6 +130,18 @@ async function handleSettleCheck(req: NextRequest) {
 
     // Check each market
     for (const [marketId, ticker] of uniqueMarkets.entries()) {
+      if (!marketId || !ticker) {
+        console.error("[settle/check] Skipping invalid market entry:", { marketId, ticker });
+        results.errors++;
+        results.details.push({
+          market_id: marketId || "unknown",
+          ticker: ticker || "unknown",
+          status: "invalid_entry",
+          error: "Missing market_id or ticker"
+        });
+        continue;
+      }
+      
       results.checked++;
       
       try {
@@ -129,9 +155,10 @@ async function handleSettleCheck(req: NextRequest) {
         if (existingOutcome?.resolved) {
           // Already resolved, but predictions might not be settled yet
           // Call settle endpoint with known outcome
-          const settleResponse = await fetch(
-            new URL("/api/settle", req.nextUrl.origin).toString(),
-            {
+          const settleUrl = new URL("/api/settle", req.nextUrl.origin).toString();
+          let settleResponse: Response;
+          try {
+            settleResponse = await fetch(settleUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -139,8 +166,19 @@ async function handleSettleCheck(req: NextRequest) {
                 outcome_yes: existingOutcome.side_yes,
                 source: "auto_settlement"
               })
-            }
-          );
+            });
+          } catch (fetchError) {
+            const fetchErrorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+            console.error(`[settle/check] Error calling /api/settle for ${ticker}:`, fetchErrorMsg);
+            results.errors++;
+            results.details.push({
+              market_id: marketId,
+              ticker,
+              status: "settle_fetch_failed",
+              error: `Failed to call settle endpoint: ${fetchErrorMsg}`
+            });
+            continue;
+          }
 
           if (settleResponse.ok) {
             results.settled++;
@@ -249,9 +287,10 @@ async function handleSettleCheck(req: NextRequest) {
         }
 
         // Call settle endpoint
-        const settleResponse = await fetch(
-          new URL("/api/settle", req.nextUrl.origin).toString(),
-          {
+        const settleUrl = new URL("/api/settle", req.nextUrl.origin).toString();
+        let settleResponse: Response;
+        try {
+          settleResponse = await fetch(settleUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -259,8 +298,19 @@ async function handleSettleCheck(req: NextRequest) {
               outcome_yes: outcomeYes,
               source: "auto_settlement"
             })
-          }
-        );
+          });
+        } catch (fetchError) {
+          const fetchErrorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+          console.error(`[settle/check] Error calling /api/settle for ${ticker}:`, fetchErrorMsg);
+          results.errors++;
+          results.details.push({
+            market_id: marketId,
+            ticker,
+            status: "settle_fetch_failed",
+            error: `Failed to call settle endpoint: ${fetchErrorMsg}`
+          });
+          continue;
+        }
 
         if (settleResponse.ok) {
           const _settleData = await settleResponse.json();
@@ -285,10 +335,11 @@ async function handleSettleCheck(req: NextRequest) {
       } catch (error) {
         results.errors++;
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error(`[settle/check] Error processing market ${ticker}:`, errorMsg);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        console.error(`[settle/check] Error processing market ${ticker || marketId}:`, errorMsg, errorStack);
         results.details.push({
-          market_id: marketId,
-          ticker,
+          market_id: marketId || "unknown",
+          ticker: ticker || "unknown",
           status: "error",
           error: errorMsg
         });
@@ -308,11 +359,13 @@ async function handleSettleCheck(req: NextRequest) {
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("[settle/check] Fatal error:", msg);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error("[settle/check] Fatal error:", msg, stack);
     return NextResponse.json({ 
       ok: false, 
       error: "internal_error", 
-      message: msg 
+      message: msg,
+      stack: process.env.NODE_ENV === "development" ? stack : undefined
     }, { status: 500 });
   }
 }
