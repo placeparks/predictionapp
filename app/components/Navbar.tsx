@@ -5,7 +5,6 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import dynamic from "next/dynamic";
 
-
 // Dynamically import ConnectWallet
 const DynamicConnectWallet = dynamic(async () => {
   try {
@@ -265,6 +264,7 @@ export default function Navbar() {
   const { address } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [energy, setEnergy] = useState<number | null>(null);
+  const [betTokens, setBetTokens] = useState<number | null>(null);
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
