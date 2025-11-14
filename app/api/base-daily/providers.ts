@@ -541,6 +541,246 @@ export class AlchemyProvider {
       return { success: false, error: msg, source: "alchemy" };
     }
   }
+
+  async getDailyBlockCount(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
+    try {
+      // If we have saved blocks, the count is simply endBlock - startBlock + 1
+      if (startBlock != null && endBlock != null) {
+        return { success: true, data: endBlock - startBlock + 1, source: "alchemy" };
+      }
+
+      // Otherwise, estimate based on date range
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Base has ~2 second blocks, so ~43,200 blocks per day
+      const blocksPerDay = 43200;
+      return { success: true, data: blocksPerDay, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyERC20Transfers(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
+    try {
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: string;
+      let useEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        useStartBlock = `0x${startBlock.toString(16)}`;
+        useEndBlock = `0x${endBlock.toString(16)}`;
+      } else {
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+        useStartBlock = `0x${estimatedStartBlock.toString(16)}`;
+        useEndBlock = `0x${estimatedEndBlock.toString(16)}`;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const isTodayOrFuture = startTimestamp >= now - 86400;
+      
+      let finalStartBlock: string;
+      let finalEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        finalStartBlock = useStartBlock;
+        finalEndBlock = useEndBlock;
+      } else if (isTodayOrFuture) {
+        finalStartBlock = "0x0";
+        finalEndBlock = "latest";
+      } else {
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const parsedStart = parseInt(useStartBlock, 16);
+        const parsedEnd = parseInt(useEndBlock, 16);
+        finalStartBlock = `0x${Math.max(0, parsedStart - blocksPerDay).toString(16)}`;
+        finalEndBlock = `0x${Math.min(latestBlock, parsedEnd + blocksPerDay).toString(16)}`;
+      }
+
+      let totalTransfers = 0;
+      let transfersInRange = 0;
+      let pageKey: string | undefined = undefined;
+      let maxPages = 50;
+
+      do {
+        const params: Record<string, unknown> = {
+          fromBlock: finalStartBlock,
+          toBlock: finalEndBlock,
+          category: ["erc20"],
+          withMetadata: true,
+          maxCount: "0x3e8",
+        };
+        if (pageKey) params.pageKey = pageKey;
+
+        const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
+          transfers?: Array<{ metadata?: { blockTimestamp?: string } }>;
+          pageKey?: string;
+        };
+
+        if (result?.transfers) {
+          totalTransfers += result.transfers.length;
+          for (const transfer of result.transfers) {
+            const blockTime = transfer.metadata?.blockTimestamp 
+              ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
+              : null;
+            
+            if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+              transfersInRange++;
+            }
+          }
+        }
+
+        pageKey = result?.pageKey;
+        maxPages--;
+      } while (pageKey && maxPages > 0);
+
+      return { success: true, data: transfersInRange, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyTxPerBlock(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
+    try {
+      // Get total transactions and block count, then calculate average
+      const txResult = await this.getDailyTransactionCount(dateStr, startBlock, endBlock);
+      const blockResult = await this.getDailyBlockCount(dateStr, startBlock, endBlock);
+
+      if (!txResult.success || !blockResult.success || !txResult.data || !blockResult.data) {
+        return { success: false, error: "Failed to get transactions or blocks", source: "alchemy" };
+      }
+
+      const avgTxPerBlock = txResult.data / blockResult.data;
+      return { success: true, data: avgTxPerBlock, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
+
+  async getDailyUniqueContractInteractions(
+    dateStr: string,
+    startBlock?: number | null,
+    endBlock?: number | null
+  ): Promise<ProviderResult<number>> {
+    try {
+      // Count unique addresses that interacted with contracts (ERC20, ERC721, ERC1155 transfers)
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const startTimestamp = Math.floor(date.getTime() / 1000);
+      const endTimestamp = startTimestamp + 86400;
+
+      // Use provided block numbers if available, otherwise estimate
+      let useStartBlock: string;
+      let useEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        useStartBlock = `0x${startBlock.toString(16)}`;
+        useEndBlock = `0x${endBlock.toString(16)}`;
+      } else {
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const daysSinceDate = Math.floor((Date.now() / 1000 - startTimestamp) / 86400);
+        const estimatedStartBlock = Math.max(0, latestBlock - (daysSinceDate * blocksPerDay) - blocksPerDay);
+        const estimatedEndBlock = estimatedStartBlock + blocksPerDay;
+        useStartBlock = `0x${estimatedStartBlock.toString(16)}`;
+        useEndBlock = `0x${estimatedEndBlock.toString(16)}`;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const isTodayOrFuture = startTimestamp >= now - 86400;
+      
+      let finalStartBlock: string;
+      let finalEndBlock: string;
+      
+      if (startBlock != null && endBlock != null) {
+        finalStartBlock = useStartBlock;
+        finalEndBlock = useEndBlock;
+      } else if (isTodayOrFuture) {
+        finalStartBlock = "0x0";
+        finalEndBlock = "latest";
+      } else {
+        const latestBlockHex = await this.rpcCall("eth_blockNumber", []) as string;
+        const latestBlock = parseInt(latestBlockHex, 16);
+        const blocksPerDay = 43200;
+        const parsedStart = parseInt(useStartBlock, 16);
+        const parsedEnd = parseInt(useEndBlock, 16);
+        finalStartBlock = `0x${Math.max(0, parsedStart - blocksPerDay).toString(16)}`;
+        finalEndBlock = `0x${Math.min(latestBlock, parsedEnd + blocksPerDay).toString(16)}`;
+      }
+
+      const uniqueAddresses = new Set<string>();
+      let pageKey: string | undefined = undefined;
+      let maxPages = 50;
+
+      do {
+        const params: Record<string, unknown> = {
+          fromBlock: finalStartBlock,
+          toBlock: finalEndBlock,
+          category: ["erc20", "erc721", "erc1155"], // Only contract interactions
+          withMetadata: true,
+          maxCount: "0x3e8",
+        };
+        if (pageKey) params.pageKey = pageKey;
+
+        const result = await this.rpcCall("alchemy_getAssetTransfers", [params]) as {
+          transfers?: Array<{ from?: string; to?: string; metadata?: { blockTimestamp?: string } }>;
+          pageKey?: string;
+        };
+
+        if (result?.transfers) {
+          for (const transfer of result.transfers) {
+            const blockTime = transfer.metadata?.blockTimestamp 
+              ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
+              : null;
+            
+            if (blockTime && blockTime >= startTimestamp && blockTime < endTimestamp) {
+              // Count both from and to addresses (contract interactions)
+              if (transfer.from && transfer.from !== "0x0000000000000000000000000000000000000000") {
+                uniqueAddresses.add(transfer.from.toLowerCase());
+              }
+              if (transfer.to && transfer.to !== "0x0000000000000000000000000000000000000000") {
+                uniqueAddresses.add(transfer.to.toLowerCase());
+              }
+            }
+          }
+        }
+
+        pageKey = result?.pageKey;
+        maxPages--;
+      } while (pageKey && maxPages > 0);
+
+      return { success: true, data: uniqueAddresses.size, source: "alchemy" };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return { success: false, error: msg, source: "alchemy" };
+    }
+  }
 }
 
 // Single shared instance
@@ -792,55 +1032,41 @@ export const MARKET_FETCHERS: Record<string, MarketDataFetcher> = {
       return { success: false, error: "No API keys configured (ALCHEMY_API_KEY or BASESCAN_API_KEY)", source: "none" };
     },
   },
-  "nft-mints": {
-    provider: "reservoir",
-    fetch: async (_dateStr: string) => {
-      return {
-        success: false,
-        error: "Reservoir NFT mints not implemented",
-        source: "reservoir",
-      };
+  "block-count": {
+    provider: "alchemy",
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
+      if (alchemy) {
+        return alchemy.getDailyBlockCount(dateStr, startBlock, endBlock);
+      }
+      return { success: false, error: "ALCHEMY_API_KEY not configured", source: "none" };
     },
   },
-  "dex-volume": {
-    provider: "defillama",
-    fetch: async (_dateStr: string) => ({
-      success: false,
-      error: "DeFiLlama DEX volume not implemented",
-      source: "defillama",
-    }),
+  "erc20-transfers": {
+    provider: "alchemy",
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
+      if (alchemy) {
+        return alchemy.getDailyERC20Transfers(dateStr, startBlock, endBlock);
+      }
+      return { success: false, error: "ALCHEMY_API_KEY not configured", source: "none" };
+    },
   },
-  "net-bridge": {
-    provider: "defillama",
-    fetch: async (_dateStr: string) => ({
-      success: false,
-      error: "Bridge API not implemented",
-      source: "defillama",
-    }),
+  "tx-per-block": {
+    provider: "alchemy",
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
+      if (alchemy) {
+        return alchemy.getDailyTxPerBlock(dateStr, startBlock, endBlock);
+      }
+      return { success: false, error: "ALCHEMY_API_KEY not configured", source: "none" };
+    },
   },
-  "tvl-growth": {
-    provider: "defillama",
-    fetch: async (_dateStr: string) => ({
-      success: false,
-      error: "DeFiLlama TVL not implemented",
-      source: "defillama",
-    }),
-  },
-  "average-confirmation": {
-    provider: "none",
-    fetch: async (_dateStr: string) => ({
-      success: false,
-      error: "Average confirmation not implemented",
-      source: "none",
-    }),
-  },
-  "gas-savings": {
-    provider: "none",
-    fetch: async (_dateStr: string) => ({
-      success: false,
-      error: "Gas savings not implemented",
-      source: "none",
-    }),
+  "unique-contract-interactions": {
+    provider: "alchemy",
+    fetch: async (dateStr: string, startBlock?: number | null, endBlock?: number | null) => {
+      if (alchemy) {
+        return alchemy.getDailyUniqueContractInteractions(dateStr, startBlock, endBlock);
+      }
+      return { success: false, error: "ALCHEMY_API_KEY not configured", source: "none" };
+    },
   },
 };
 

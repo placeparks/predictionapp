@@ -22,13 +22,11 @@ interface BaseMetrics {
   activeAddresses: number;
   totalTransactions: number;
   avgGasPrice: number; // gwei
-  dexVolume: number; // USD
-  netBridgeInflow: number; // USD
   newContracts: number;
-  nftMints: number;
-  avgConfirmationTime: number; // seconds
-  tvlChange: number; // %
-  gasSavings: number; // %
+  blockCount: number;
+  erc20Transfers: number;
+  txPerBlock: number;
+  uniqueContractInteractions: number;
 }
 
 function determineOutcome(
@@ -51,13 +49,18 @@ function determineOutcome(
     case "new-contracts":
       return value >= 200;
 
-    // Not implemented / external APIs needed:
-    case "dex-volume":
-    case "net-bridge":
-    case "tvl-growth":
-    case "nft-mints":
-    case "average-confirmation":
-    case "gas-savings":
+    case "block-count":
+      return value > 43_000;
+
+    case "erc20-transfers":
+      return value > 1_000_000;
+
+    case "tx-per-block":
+      return value > 50;
+
+    case "unique-contract-interactions":
+      return value >= 10_000;
+
     default:
       return null;
   }
@@ -387,13 +390,11 @@ async function handleAutoResolve(
       activeAddresses: metricsMap["active-addresses"] ?? 0,
       totalTransactions: metricsMap["total-transactions"] ?? 0,
       avgGasPrice: metricsMap["avg-gas-price"] ?? 0.2,
-      dexVolume: metricsMap["dex-volume"] ?? 0,
-      netBridgeInflow: metricsMap["net-bridge"] ?? 0,
       newContracts: metricsMap["new-contracts"] ?? 0,
-      nftMints: metricsMap["nft-mints"] ?? 0,
-      avgConfirmationTime: metricsMap["average-confirmation"] ?? 2,
-      tvlChange: metricsMap["tvl-growth"] ?? 0,
-      gasSavings: metricsMap["gas-savings"] ?? 95,
+      blockCount: metricsMap["block-count"] ?? 0,
+      erc20Transfers: metricsMap["erc20-transfers"] ?? 0,
+      txPerBlock: metricsMap["tx-per-block"] ?? 0,
+      uniqueContractInteractions: metricsMap["unique-contract-interactions"] ?? 0,
     };
 
     type MarketResolutionResult =
