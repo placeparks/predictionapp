@@ -1,7 +1,6 @@
-﻿"use client";
+"use client";
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Clock, DollarSign, Target, X, TrendingUp, TrendingDown } from "lucide-react";
-import { useChainId } from "wagmi";
 import { keccak256, stringToBytes } from "viem";
 
 type KalshiSeries = {
@@ -322,9 +321,6 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
     };
   }, []);
 
-  // wagmi hooks
-  const chainId = useChainId();
-
   // sentinel for IntersectionObserver
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
@@ -399,7 +395,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
   }, [address]);
 
   // Build query for current category + paging
-  const buildQueryString = () => {
+  const buildQueryString = (usePaging: boolean) => {
     const qs = new URLSearchParams({
       order_by: "trending",
       status: "open,unopened",
@@ -408,8 +404,14 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
       hydrate: "milestones",
     });
     if (cat && cat !== "all") qs.set("category", cat);
-    if (nextCursorRef.current) qs.set("cursor", nextCursorRef.current);
-    if (typeof nextPageRef.current === "number") qs.set("page", String(nextPageRef.current));
+    // Only add cursor/page when loading more (not on first load)
+    if (usePaging) {
+      if (nextCursorRef.current) {
+        qs.set("cursor", nextCursorRef.current);
+      } else if (typeof nextPageRef.current === "number") {
+        qs.set("page", String(nextPageRef.current));
+      }
+    }
     return qs.toString();
   };
 
@@ -419,32 +421,64 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
     if (!replace && (loadingMore || !hasMore)) return;
     if (replace) {
       setInitialLoading(true);
+      // Clear pagination refs when replacing (starting fresh)
+      nextCursorRef.current = undefined;
+      nextPageRef.current = undefined;
     } else {
       setLoadingMore(true);
+      // If loading more but no cursor/page available, don't fetch
+      if (!nextCursorRef.current && typeof nextPageRef.current !== "number") {
+        setLoadingMore(false);
+        setHasMore(false);
+        return;
+      }
     }
 
     try {
-      const qs = buildQueryString();
+      const qs = buildQueryString(!replace); // usePaging = true when loading more
       const r = await fetch(`${API_SERIES}?${qs}`, { cache: "no-store" });
       const j = await r.json();
 
       const rows: KalshiSeries[] = j?.series ?? j?.results ?? j?.items ?? j?.current_page ?? [];
       const { cursor, page } = getNextCursor(j);
 
-      // Update paging cursors
-      nextCursorRef.current = cursor;
-      nextPageRef.current = page;
-
       const got = Array.isArray(rows) ? rows : [];
-      setSeries(prev => (replace ? got : [...prev, ...got]));
+      
+      // Check for duplicates when appending (prevent loading same data)
+      if (!replace) {
+        const existingTickers = new Set(series.map(s => s.ticker || s.series_ticker || ""));
+        const newItems = got.filter(s => {
+          const ticker = s.ticker || s.series_ticker || "";
+          return ticker && !existingTickers.has(ticker);
+        });
+        
+        if (newItems.length === 0 && got.length > 0) {
+          // All items are duplicates, no more data available
+          setHasMore(false);
+          setLoadingMore(false);
+          return;
+        }
+        
+        setSeries(prev => [...prev, ...newItems]);
+      } else {
+        setSeries(got);
+      }
 
-      // Has more?
-      const more =
-        (typeof cursor === "string" && cursor.length > 0) ||
-        (typeof page === "number") ||
-        // fallback heuristic: if we received a full page, assume more
-        got.length >= 50;
+      // Update paging cursors only if we got valid next page info
+      if (cursor && cursor.length > 0) {
+        nextCursorRef.current = cursor;
+        nextPageRef.current = undefined; // Clear page when using cursor
+      } else if (typeof page === "number") {
+        nextPageRef.current = page;
+        nextCursorRef.current = undefined; // Clear cursor when using page
+      } else {
+        // No next page/cursor available
+        nextCursorRef.current = undefined;
+        nextPageRef.current = undefined;
+      }
 
+      // Has more? Only if we have a valid next cursor/page
+      const more = (typeof cursor === "string" && cursor.length > 0) || (typeof page === "number");
       setHasMore(more);
       setErr(null);
     } catch (e: unknown) {
@@ -459,7 +493,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cat, hasMore, loadingMore]);
+  }, [cat, hasMore, loadingMore, series]);
 
   // IntersectionObserver to auto-load when reaching the end
   useEffect(() => {
