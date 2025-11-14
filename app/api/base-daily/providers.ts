@@ -554,10 +554,6 @@ export class AlchemyProvider {
       }
 
       // Otherwise, estimate based on date range
-      const date = new Date(`${dateStr}T00:00:00Z`);
-      const startTimestamp = Math.floor(date.getTime() / 1000);
-      const endTimestamp = startTimestamp + 86400;
-
       // Base has ~2 second blocks, so ~43,200 blocks per day
       const blocksPerDay = 43200;
       return { success: true, data: blocksPerDay, source: "alchemy" };
@@ -617,7 +613,7 @@ export class AlchemyProvider {
         finalEndBlock = `0x${Math.min(latestBlock, parsedEnd + blocksPerDay).toString(16)}`;
       }
 
-      let totalTransfers = 0;
+      let _totalTransfers = 0; // For potential debugging/logging
       let transfersInRange = 0;
       let pageKey: string | undefined = undefined;
       let maxPages = 50;
@@ -638,7 +634,7 @@ export class AlchemyProvider {
         };
 
         if (result?.transfers) {
-          totalTransfers += result.transfers.length;
+          _totalTransfers += result.transfers.length;
           for (const transfer of result.transfers) {
             const blockTime = transfer.metadata?.blockTimestamp 
               ? Math.floor(new Date(transfer.metadata.blockTimestamp).getTime() / 1000)
