@@ -513,7 +513,7 @@ function HomeContent() {
   return (
     <>
       {/* Floating Particles Background */}
-      <div style={{
+          <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -540,7 +540,7 @@ function HomeContent() {
             }}
           />
         ))}
-      </div>
+            </div>
 
       <main
         style={{
@@ -551,8 +551,8 @@ function HomeContent() {
           zIndex: 1
         }}
       >
-        <style>{`
-          .nft-card {
+                <style>{`
+                    .nft-card {
             background: rgba(255, 255, 255, 0.05) !important;
             backdrop-filter: blur(30px) saturate(180%) !important;
             -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
@@ -575,7 +575,7 @@ function HomeContent() {
             border-color: rgba(255, 255, 255, 0.4) !important;
           }
 
-          .nft-image {
+                    .nft-image {
             background: linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(120, 208, 66, 0.2), rgba(99, 102, 241, 0.2)) !important;
             background-size: 200% 200% !important;
             animation: gradient-shift 8s ease infinite !important;
@@ -718,9 +718,9 @@ function HomeContent() {
             }
             .stat-card {
               border-radius: 20px !important;
-            }
-          }
-        `}</style>
+                    }
+                  }
+                `}</style>
 
         {showFAQ ? (
           <FAQ />
@@ -1008,7 +1008,7 @@ function HomeContent() {
                       padding: '1rem 1.25rem',
                       borderRadius: '16px',
                       border: referralError ? '2px solid rgba(239, 68, 68, 0.5)' : '2px solid rgba(255, 215, 0, 0.3)',
-                      background: 'rgba(0, 0, 0, 0.3)',
+                        background: 'rgba(0, 0, 0, 0.3)',
                       color: '#fff',
                       fontSize: '1rem',
                       outline: 'none',
@@ -1034,7 +1034,7 @@ function HomeContent() {
                     disabled={referralProcessing || !referralCode}
                     style={{
                       padding: '1rem 2rem',
-                      borderRadius: '16px',
+                        borderRadius: '16px',
                       background: referralProcessing || !referralCode 
                         ? 'rgba(255, 255, 255, 0.1)' 
                         : 'linear-gradient(135deg, #FFD700, #FFA500)',
@@ -1055,8 +1055,8 @@ function HomeContent() {
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
                     }}
                   >
                     {referralProcessing ? 'Processing...' : 'Claim 50 BET Tokens'}
@@ -1069,8 +1069,8 @@ function HomeContent() {
                   }}>
                     You can skip this step if you don&apos;t have a referral code
                   </p>
-                </div>
-              </div>
+                        </div>
+                        </div>
             )}
 
             {/* Show success message if referral was submitted */}
@@ -1093,7 +1093,7 @@ function HomeContent() {
                     <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
                       You&apos;ll receive 50 BET tokens when you make your first prediction
                     </p>
-                  </div>
+                      </div>
                 </div>
               </div>
             )}
@@ -1113,7 +1113,7 @@ function HomeContent() {
                 <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '1.1rem' }}>
                   Connect your wallet to view your stats and start making predictions!
                 </p>
-              </div>
+          </div>
             )}
             {loading && (
               <div className="glass-card-dark" style={{ 

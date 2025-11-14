@@ -1,7 +1,7 @@
 ﻿"use client";
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Clock, DollarSign, Target, X, TrendingUp, TrendingDown } from "lucide-react";
-import { useSignTypedData, useChainId } from "wagmi";
+import { useChainId } from "wagmi";
 import { keccak256, stringToBytes } from "viem";
 
 type KalshiSeries = {
@@ -324,7 +324,6 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
 
   // wagmi hooks
   const chainId = useChainId();
-  const { signTypedDataAsync } = useSignTypedData();
 
   // sentinel for IntersectionObserver
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -548,53 +547,10 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
         setPredictError(`You need ${ENERGY_COST} energy to make a prediction. You have ${energy} energy. Energy refills 10 units every 15 minutes (Tier 4/5: every 10 minutes).`);
         return;
       }
-      const REGISTRY = process.env.NEXT_PUBLIC_FORECAST_REGISTRY;
-      const VAULT_ID = Number(process.env.NEXT_PUBLIC_FORECAST_VAULT_ID || "0");
+      const VAULT_ID = Number(process.env.NEXT_PUBLIC_FORECAST_VAULT_ID || "1");
       const PERIOD_ID = Number(process.env.NEXT_PUBLIC_CURRENT_PERIOD_ID || "1");
-      if (!REGISTRY || REGISTRY.length !== 42) {
-        setPredictError("Missing NEXT_PUBLIC_FORECAST_REGISTRY in .env");
-        return;
-      }
       const marketId = keccak256(stringToBytes(active.marketId));
-      const nowSec = Math.floor(Date.now() / 1000);
-      const deadline = nowSec + 3600;
-      const nonce = BigInt(Date.now()) * BigInt(1000) + BigInt(Math.floor(Math.random() * 1000));
-      const domain = { name: "ForecastFund", version: "1", chainId, verifyingContract: REGISTRY as `0x${string}` } as const;
-      const types = {
-        Record: [
-          { name: "user", type: "address" },
-          { name: "vaultId", type: "uint256" },
-          { name: "periodId", type: "uint64" },
-          { name: "marketId", type: "bytes32" },
-          { name: "sideYes", type: "bool" },
-          { name: "stakePoints", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" }
-        ]
-      } as const;
-      const message = {
-        user: address as `0x${string}`,
-        vaultId: BigInt(VAULT_ID),
-        periodId: BigInt(PERIOD_ID),
-        marketId: marketId as `0x${string}`,
-        sideYes: active.side === "yes",
-        stakePoints: BigInt(ENERGY_COST), // Fixed 30 energy cost
-        nonce,
-        deadline: BigInt(deadline)
-      } as const;
-      setPending(true);
-      const signature = await signTypedDataAsync({ domain, types, primaryType: "Record", message });
-      // Convert BigInt values to strings for JSON serialization
-      const messageForApi = {
-        user: message.user,
-        vaultId: message.vaultId.toString(),
-        periodId: message.periodId.toString(),
-        marketId: message.marketId,
-        sideYes: message.sideYes,
-        stakePoints: message.stakePoints.toString(),
-        nonce: message.nonce.toString(),
-        deadline: message.deadline.toString(),
-      };
+      
       // Get referral code from localStorage if available
       let referralCode: string | undefined;
       try {
@@ -606,18 +562,19 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
         // localStorage access failed, ignore
       }
 
+      setPending(true);
       const res = await fetch("/api/predictions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain,
-          typesName: "Record",
-          types,
-          message: messageForApi,
-          signature,
+          user: address,
+          marketId: marketId,
+          periodId: PERIOD_ID,
+          sideYes: active.side === "yes",
           marketTitle: active.marketTitle,
           marketTicker: active.marketId,
-          referralCode // Include referral code if available (can be PROPH-XXXXX or wallet address for backward compatibility)
+          referralCode, // Include referral code if available (can be PROPH-XXXXX or wallet address for backward compatibility)
+          vaultId: VAULT_ID
         })
       });
       if (!res.ok) {

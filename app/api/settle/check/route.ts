@@ -191,6 +191,30 @@ async function handleSettleCheck(req: NextRequest) {
 
         if (!kalshiResponse.ok) {
           if (kalshiResponse.status === 404) {
+            // Update market status to "not_found" in markets table
+            try {
+              await supabaseAdmin
+                .from("markets")
+                .upsert({
+                  market_id: marketId,
+                  ticker: ticker,
+                  title: null,
+                  subtitle: null,
+                  category: null,
+                  status: "not_found",
+                  close_ts: null,
+                  open_interest: null,
+                  volume: null,
+                  raw: null,
+                  updated_at: new Date().toISOString(),
+                }, {
+                  onConflict: "market_id",
+                  ignoreDuplicates: false
+                });
+            } catch (marketUpdateErr) {
+              console.warn(`[settle/check] Failed to update market status for ${ticker} (non-fatal):`, marketUpdateErr);
+            }
+            
             results.skipped++;
             results.details.push({
               market_id: marketId,
@@ -224,8 +248,34 @@ async function handleSettleCheck(req: NextRequest) {
           continue;
         }
 
+        // Update market metadata in markets table
+        try {
+          await supabaseAdmin
+            .from("markets")
+            .upsert({
+              market_id: marketId,
+              ticker: ticker,
+              title: market.title || market.question || null,
+              subtitle: market.subtitle || null,
+              category: market.category || null,
+              status: market.status || null,
+              close_ts: market.close_ts || market.close_date ? (typeof market.close_ts === "number" ? market.close_ts : new Date(market.close_date || 0).getTime() / 1000) : null,
+              open_interest: market.open_interest || null,
+              volume: market.volume || null,
+              raw: market as Record<string, unknown>,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: "market_id",
+              ignoreDuplicates: false
+            });
+        } catch (marketUpdateErr) {
+          // Non-fatal: continue even if market update fails
+          console.warn(`[settle/check] Failed to update market metadata for ${ticker} (non-fatal):`, marketUpdateErr);
+        }
+
         // Check if market is settled
         if (market.status !== "settled") {
+          // Market exists but not settled yet - status already updated above
           results.skipped++;
           results.details.push({
             market_id: marketId,

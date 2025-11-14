@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 
 type Minter = {
   wallet: string;
@@ -283,6 +284,8 @@ function ShardSprite({
   }, [scale]);
 
   // Store minter data in the object for hover detection and add to refs array
+  // IMPORTANT: Include texture, material, and mintedTokenId in deps so this runs
+  // AFTER the component actually renders (when texture/material are loaded)
   useEffect(() => {
     const currentPointsRef = pointsRef.current;
     const currentShardRefs = shardRefs.current;
@@ -293,6 +296,9 @@ function ShardSprite({
       // Add to shard refs array if not already there
       if (!currentShardRefs.includes(currentPointsRef)) {
         currentShardRefs.push(currentPointsRef);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[ShardSprite] Registered shard ${index} in shardRefs (total: ${currentShardRefs.length})`);
+        }
       }
     }
     return () => {
@@ -303,7 +309,7 @@ function ShardSprite({
         }
       }
     };
-  }, [index, minter, shardRefs]);
+  }, [index, minter, shardRefs, texture, material, minter.mintedTokenId]);
 
   // NOW we can do conditional returns after all hooks
   if (!minter.mintedTokenId || !texture || !material) return null;
@@ -387,16 +393,69 @@ function useHover(
       // First check shards (they're on top, so prioritize them)
       let hit: THREE.Intersection | null = null;
       let isShard = false;
+      let closestIndex = -1; // Declare in outer scope
       
       if (shardRefs.current && shardRefs.current.length > 0) {
+        // Set threshold for Points objects (larger threshold for better hit detection)
+        // Points objects need a threshold to be raycastable
+        if (!raycaster.params.Points) {
+          raycaster.params.Points = { threshold: 2.0 };
+        } else {
+          raycaster.params.Points.threshold = 2.0; // Large threshold for better hit detection
+        }
+        
+        // Try manual distance calculation for Points objects (more reliable than raycast)
+        let closestShard: THREE.Points | null = null;
+        let closestDistance = Infinity;
+        
         for (const shard of shardRefs.current) {
-          if (shard) {
-            const shardHits = raycaster.intersectObject(shard, true);
-            if (shardHits.length > 0) {
-              hit = shardHits[0];
-              isShard = true;
-              break;
+          if (shard && shard.visible && shard.userData.minterIndex != null) {
+            try {
+              // Get shard world position
+              const worldPos = new THREE.Vector3();
+              shard.getWorldPosition(worldPos);
+              
+              // Project to screen space
+              const screenPos = worldPos.clone().project(camera);
+              // Convert from normalized device coordinates (-1 to 1) to viewport pixels
+              const screenX = (screenPos.x * 0.5 + 0.5) * rect.width + rect.left;
+              const screenY = (screenPos.y * -0.5 + 0.5) * rect.height + rect.top;
+              
+              // Calculate distance from mouse to shard in screen space
+              const dx = clientX - screenX;
+              const dy = clientY - screenY;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Use a threshold based on shard size (roughly 80px for hover detection - larger for better UX)
+              const threshold = 80;
+              if (distance < threshold && distance < closestDistance) {
+                closestDistance = distance;
+                closestShard = shard;
+                closestIndex = shard.userData.minterIndex;
+              }
+            } catch (err) {
+              // Silently continue if calculation fails for this shard
             }
+          }
+        }
+        
+        if (closestShard) {
+          // Create a fake hit object for consistency
+          hit = {
+            object: closestShard,
+            point: new THREE.Vector3(),
+            distance: closestDistance,
+          } as THREE.Intersection;
+          isShard = true;
+          // Debug logging (remove in production)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Hover] Closest shard hover:', {
+              index: closestIndex,
+              distance: closestDistance.toFixed(2),
+              hasMinter: !!closestShard.userData.minter,
+              wallet: closestShard.userData.minter?.wallet?.slice(0, 10),
+              shardRefsLength: shardRefs.current.length
+            });
           }
         }
       }
@@ -411,24 +470,41 @@ function useHover(
       }
       
       if (hit) {
-        // For shards, get index from userData
+        // For shards, get index from userData or use manually calculated index
         let index = -1;
-        if (isShard && hit.object instanceof THREE.Points && hit.object.userData.minterIndex != null) {
-          index = hit.object.userData.minterIndex;
+        if (isShard) {
+          if (closestIndex >= 0) {
+            index = closestIndex;
+          } else if (hit.object instanceof THREE.Points && hit.object.userData.minterIndex != null) {
+            index = hit.object.userData.minterIndex;
+          }
         } else if (!isShard && hit.instanceId != null) {
           index = hit.instanceId;
         }
         
         if (index >= 0) {
-          setHover({
+          const hoverData = {
             index: index,
-            x: hit.point.x,
-            y: hit.point.y,
+            x: hit.point.x || 0,
+            y: hit.point.y || 0,
             screenX: clientX, // Use viewport coordinates for fixed positioning
             screenY: clientY, // Use viewport coordinates for fixed positioning
             isShard,
             shardObject: isShard ? hit.object : undefined,
-          } as HoverInfo & { isShard?: boolean; shardObject?: THREE.Object3D });
+          } as HoverInfo & { isShard?: boolean; shardObject?: THREE.Object3D };
+          
+          // Debug logging (remove in production)
+          if (process.env.NODE_ENV === 'development' && isShard) {
+            console.log('[Hover] Setting hover state:', {
+              index,
+              screenX: clientX,
+              screenY: clientY,
+              hasShardObject: !!hoverData.shardObject,
+              hasMinter: !!hoverData.shardObject?.userData?.minter
+            });
+          }
+          
+          setHover(hoverData);
         } else {
           setHover(null);
         }
@@ -474,22 +550,26 @@ function useHover(
   return hover;
 }
 
-function MintersPoints({ data, shardRefs }: { data: Minter[]; shardRefs: React.MutableRefObject<THREE.Points[]> }) {
+function MintersPoints({ 
+  data, 
+  shardRefs, 
+  onHover 
+}: { 
+  data: Minter[]; 
+  shardRefs: React.MutableRefObject<THREE.Points[]>; 
+  onHover?: (hover: { index: number; x: number; y: number } | null) => void;
+}) {
   const count = Math.min(data.length, NODE_COUNT_CAP);
   const ref = useRef<THREE.InstancedMesh>(null);
   const hover = useHover(ref, shardRefs);
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const [hoverXY, setHoverXY] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!hover) {
-      setHoverIdx(null);
-      setHoverXY(null);
+      onHover?.(null);
       return;
     }
-    setHoverIdx(hover.index);
-    setHoverXY({ x: hover.screenX, y: hover.screenY });
-  }, [hover]);
+    onHover?.({ index: hover.index, x: hover.screenX, y: hover.screenY });
+  }, [hover, onHover]);
 
   // per-instance attributes
   const colorArray = useMemo(() => new Float32Array(count * 3), [count]);
@@ -594,70 +674,7 @@ function MintersPoints({ data, shardRefs }: { data: Minter[]; shardRefs: React.M
     return g;
   }, [colorArray, count, scaleArray]);
 
-  // Get minter data - either from shard userData or from data array
-  const hoveredMinter = useMemo(() => {
-    if (!hover || hoverIdx == null) return null;
-    // If hovering over a shard, get minter from userData
-    if (hover.isShard && hover.shardObject?.userData?.minter) {
-      return hover.shardObject.userData.minter as Minter;
-    }
-    // Otherwise, get from data array using index
-    return data[hoverIdx] || null;
-  }, [hover, hoverIdx, data]);
-
-  return (
-    <>
-      <instancedMesh ref={ref} args={[geometry, material, count]} />
-      {hoveredMinter && hoverXY && (
-        <Html
-          transform={false}
-          zIndexRange={[1000, 1000]}
-          style={{
-            position: "fixed",
-            left: `${hoverXY.x}px`,
-            top: `${hoverXY.y}px`,
-            pointerEvents: "none",
-            transform: typeof window !== "undefined" && window.innerWidth < 768
-              ? "translate(-50%, -100%)"
-              : "translate(-50%, 0)",
-            zIndex: 10000,
-          }}
-        >
-          <div
-            style={{
-              background: "rgba(2,6,23,0.95)",
-              border: "1px solid rgba(99,102,241,0.35)",
-              borderRadius: 10,
-              padding: "clamp(6px, 2vw, 10px) clamp(8px, 2.5vw, 12px)",
-              color: "#e2e8f0",
-              minWidth: "clamp(180px, 50vw, 220px)",
-              maxWidth: "90vw",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
-              fontSize: "clamp(11px, 3vw, 12px)",
-              lineHeight: 1.4,
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "clamp(12px, 3.5vw, 14px)", color: "#fff" }}>
-              {hoveredMinter.wallet.slice(0, 6)}...{hoveredMinter.wallet.slice(-4)}
-            </div>
-            <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "#22c55e", fontWeight: 600 }}>
-                ✅ Successful Predictions: <b style={{ fontSize: "clamp(13px, 3.5vw, 15px)" }}>{hoveredMinter.wins}</b>
-              </div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "clamp(10px, 2.8vw, 11px)" }}>
-              <div>Level: <b>{hoveredMinter.level}</b></div>
-              <div>
-                NFT: <b>{hoveredMinter.mintedAnimal ?? "N/A"}{hoveredMinter.mintedTokenId != null ? ` #${hoveredMinter.mintedTokenId}` : ""}</b>
-              </div>
-              <div>Win Rate: <b>{Math.round(hoveredMinter.winRate * 100)}%</b> ({hoveredMinter.wins}W / {hoveredMinter.losses}L)</div>
-              <div>Total Predictions: <b>{hoveredMinter.totalPredictions}</b></div>
-            </div>
-          </div>
-        </Html>
-      )}
-    </>
-  );
+  return <instancedMesh ref={ref} args={[geometry, material, count]} />;
 }
 
 export default function NeuralGlobe() {
@@ -665,6 +682,7 @@ export default function NeuralGlobe() {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const shardRefs = useRef<THREE.Points[]>([]);
+  const [hoverState, setHoverState] = useState<{ index: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -680,7 +698,12 @@ export default function NeuralGlobe() {
       try {
         const r = await fetch("/api/shards/minters");
         const j = await r.json();
-        if (j?.ok) setMinters(j.data as Minter[]);
+        if (j?.ok) {
+          setMinters(j.data as Minter[]);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[NeuralGlobe] Loaded minters:', j.data.length);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -688,7 +711,7 @@ export default function NeuralGlobe() {
   }, []);
 
   const showEmpty = !loading && minters.length === 0;
-  
+
   return (
     <div
       style={{
@@ -749,7 +772,7 @@ export default function NeuralGlobe() {
         <pointLight position={[0, 0, 14]} intensity={1.2} color="#60a5fa" />
         <GlobeCore />
         <NeuralArcs />
-        <MintersPoints data={minters} shardRefs={shardRefs} />
+        <MintersPoints data={minters} shardRefs={shardRefs} onHover={setHoverState} />
         <ShardSprites data={minters} shardRefs={shardRefs} />
         <OrbitControls 
           enablePan={false} 
@@ -767,6 +790,56 @@ export default function NeuralGlobe() {
           }}
         />
       </Canvas>
+      {/* Render tooltip outside Canvas using portal to avoid overflow:hidden clipping */}
+      {typeof window !== "undefined" && hoverState && minters[hoverState.index] && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            left: `${hoverState.x}px`,
+            top: `${hoverState.y}px`,
+            pointerEvents: "none",
+            transform: isMobile
+              ? "translate(-50%, -100%)"
+              : "translate(-50%, 0)",
+            zIndex: 99999,
+            background: "rgba(2,6,23,0.95)",
+            border: "1px solid rgba(99,102,241,0.35)",
+            borderRadius: 10,
+            padding: "clamp(6px, 2vw, 10px) clamp(8px, 2.5vw, 12px)",
+            color: "#e2e8f0",
+            minWidth: "clamp(180px, 50vw, 220px)",
+            maxWidth: "90vw",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
+            fontSize: "clamp(11px, 3vw, 12px)",
+            lineHeight: 1.4,
+          }}
+        >
+          {(() => {
+            const hoveredMinter = minters[hoverState.index];
+            return (
+              <>
+                <div style={{ fontWeight: 700, marginBottom: 8, fontSize: "clamp(12px, 3.5vw, 14px)", color: "#fff" }}>
+                  {hoveredMinter.wallet.slice(0, 6)}...{hoveredMinter.wallet.slice(-4)}
+                </div>
+                <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "#22c55e", fontWeight: 600 }}>
+                    ✅ Successful Predictions: <b style={{ fontSize: "clamp(13px, 3.5vw, 15px)" }}>{hoveredMinter.wins}</b>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "clamp(10px, 2.8vw, 11px)" }}>
+                  <div>Level: <b>{hoveredMinter.level}</b></div>
+                  <div>
+                    NFT: <b>{hoveredMinter.mintedAnimal ?? "N/A"}{hoveredMinter.mintedTokenId != null ? ` #${hoveredMinter.mintedTokenId}` : ""}</b>
+                  </div>
+                  <div>Win Rate: <b>{Math.round(hoveredMinter.winRate * 100)}%</b> ({hoveredMinter.wins}W / {hoveredMinter.losses}L)</div>
+                  <div>Total Predictions: <b>{hoveredMinter.totalPredictions}</b></div>
+                </div>
+              </>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

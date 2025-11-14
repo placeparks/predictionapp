@@ -926,7 +926,7 @@ export default function BaseDailyPredictions() {
           </div>
         </div>
       )}
-      </div>
+    </div>
     </>
   );
 }

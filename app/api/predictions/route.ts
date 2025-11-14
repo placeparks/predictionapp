@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/db";
-import { verifyTypedData, isAddress } from "viem";
+import { isAddress } from "viem";
 import { BASE_DAILY_MARKETS } from "@/lib/baseDaily";
-
-type RecordMessage = {
-  user: `0x${string}`;
-  vaultId: bigint | string;
-  periodId: bigint | string;
-  marketId: `0x${string}`; // bytes32
-  sideYes: boolean;
-  stakePoints: bigint | string;
-  nonce: bigint | string;
-  deadline: bigint | string; // seconds
-};
 
 interface KalshiPrediction {
   id: string;
@@ -73,87 +62,45 @@ interface CombinedPrediction {
   stake_points?: number | null;
 }
 
-interface EIP712Types {
-  EIP712Domain: Array<{ name: string; type: string }>;
-  Record: Array<{ name: string; type: string }>;
-  [key: string]: Array<{ name: string; type: string }>;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { domain, types, typesName, message, signature, marketTitle, marketTicker } = body as {
-      domain: { name: string; version: string; chainId: number; verifyingContract: `0x${string}` };
-      types: EIP712Types;
-      typesName: string;
-      message: RecordMessage;
-      signature: `0x${string}`;
+    const { user, marketId, periodId, sideYes, marketTitle, marketTicker, referralCode, vaultId } = body as {
+      user: string;
+      marketId: string;
+      periodId: number | string;
+      sideYes: boolean;
       marketTitle?: string;
       marketTicker?: string;
+      referralCode?: string;
+      vaultId?: number | string;
     };
 
     if (!supabaseAdmin) return NextResponse.json({ ok: false, error: "supabase_not_configured" }, { status: 500 });
-    if (!domain || !types || !message || !signature) {
-      console.error("Invalid payload:", { hasDomain: !!domain, hasTypes: !!types, hasMessage: !!message, hasSignature: !!signature });
-      return NextResponse.json({ ok: false, error: "invalid_payload", message: "Missing required fields: domain, types, message, or signature" }, { status: 400 });
+    
+    // Validate required fields
+    if (!user || !marketId || periodId === undefined || sideYes === undefined) {
+      console.error("Invalid payload:", { hasUser: !!user, hasMarketId: !!marketId, hasPeriodId: periodId !== undefined, hasSideYes: sideYes !== undefined });
+      return NextResponse.json({ ok: false, error: "invalid_payload", message: "Missing required fields: user, marketId, periodId, or sideYes" }, { status: 400 });
     }
-    if (typesName !== "Record") {
-      console.error("Invalid typesName:", typesName);
-      return NextResponse.json({ ok: false, error: "invalid_types", message: `Expected typesName "Record", got "${typesName}"` }, { status: 400 });
+    
+    if (!isAddress(user)) {
+      console.error("Invalid user address:", user);
+      return NextResponse.json({ ok: false, error: "invalid_user", message: `Invalid user address: ${user}` }, { status: 400 });
     }
-    if (!isAddress(message.user)) {
-      console.error("Invalid user address:", message.user);
-      return NextResponse.json({ ok: false, error: "invalid_user", message: `Invalid user address: ${message.user}` }, { status: 400 });
-    }
-
-    const nowSec = Math.floor(Date.now() / 1000);
-    const deadlineNum = typeof message.deadline === 'string' ? Number(message.deadline) : Number(message.deadline);
-    if (deadlineNum <= nowSec) {
-      console.error("Deadline expired:", { deadline: deadlineNum, now: nowSec });
-      return NextResponse.json({ ok: false, error: "deadline_expired", message: `Deadline ${deadlineNum} is in the past (now: ${nowSec})` }, { status: 400 });
-    }
-
-    const envRegistry = process.env.NEXT_PUBLIC_FORECAST_REGISTRY;
-    if (envRegistry && envRegistry.toLowerCase() !== String(domain.verifyingContract).toLowerCase()) {
-      console.error("Verifying contract mismatch:", { expected: envRegistry, got: domain.verifyingContract });
-      return NextResponse.json({ ok: false, error: "verifying_contract_mismatch", message: `Expected ${envRegistry}, got ${domain.verifyingContract}` }, { status: 400 });
-    }
-
-    // Convert string values back to BigInt for verification (viem expects BigInt)
-    const messageForVerify = {
-      user: message.user,
-      vaultId: typeof message.vaultId === 'string' ? BigInt(message.vaultId) : message.vaultId,
-      periodId: typeof message.periodId === 'string' ? BigInt(message.periodId) : message.periodId,
-      marketId: message.marketId,
-      sideYes: message.sideYes,
-      stakePoints: typeof message.stakePoints === 'string' ? BigInt(message.stakePoints) : message.stakePoints,
-      nonce: typeof message.nonce === 'string' ? BigInt(message.nonce) : message.nonce,
-      deadline: typeof message.deadline === 'string' ? BigInt(message.deadline) : message.deadline,
-    };
-
-    const valid = await verifyTypedData({
-      address: message.user,
-      domain,
-      types,
-      primaryType: "Record",
-      message: messageForVerify,
-      signature,
-    });
-    if (!valid) return NextResponse.json({ ok: false, error: "invalid_signature" }, { status: 400 });
 
     // Energy-only predictions: No USDC/vault cap check needed
     // Predictions are gated by energy cost only (30 energy per prediction)
-    // NOTE: message.stakePoints is included in the EIP-712 signature for compatibility
-    // but is NOT used to spend BET tokens - only energy is spent
 
     // Spend energy atomically before recording prediction
     // Each prediction costs 30 energy (fixed cost)
     const ENERGY_COST = 30;
+    const userAddress = user.toLowerCase();
 
     // Check if user has enough energy
     try {
       const spendRes = await supabaseAdmin.rpc("spend_energy", { 
-        p_user: message.user.toLowerCase(), 
+        p_user: userAddress, 
         p_amount: ENERGY_COST 
       });
       
@@ -170,7 +117,7 @@ export async function POST(req: NextRequest) {
       if (!spendRes.data) {
         // Get current energy to show user
         const { data: energyInfo } = await supabaseAdmin.rpc("get_energy_info", {
-          p_user: message.user.toLowerCase(),
+          p_user: userAddress,
         });
         const currentEnergy = energyInfo && typeof energyInfo === "object" && "energy" in energyInfo
           ? Number((energyInfo as { energy: number }).energy)
@@ -199,7 +146,7 @@ export async function POST(req: NextRequest) {
       const { data: existingPredictions } = await supabaseAdmin
         .from("predictions")
         .select("id")
-        .eq("user_address", message.user.toLowerCase())
+        .eq("user_address", userAddress)
         .limit(1);
       
       // If this is the first prediction, check for referral
@@ -208,101 +155,58 @@ export async function POST(req: NextRequest) {
         const { data: referralCheck, error: referralCheckError } = await supabaseAdmin
           .from("referrals")
           .select("id, referrer_address")
-          .eq("referred_address", message.user.toLowerCase())
+          .eq("referred_address", userAddress)
           .maybeSingle();
         
         // If referral exists, check activity (will mark as active after 3 days)
         if (referralCheck && !referralCheckError) {
           try {
             await supabaseAdmin.rpc("check_referral_activity", {
-              p_referred_address: message.user.toLowerCase(),
+              p_referred_address: userAddress,
             });
           } catch (activityErr) {
             // Non-fatal: referral activity check failed, but prediction should continue
             console.warn("Referral activity check failed (non-fatal):", activityErr);
           }
-        } else {
-          // No referral in database yet - try to create from request body if referral code provided
-          // This handles cases where the initial referral creation failed
-          const referralCode = (body as { referralCode?: string })?.referralCode;
-          if (referralCode && typeof referralCode === "string" && referralCode.trim().length > 0) {
-            try {
-              // Try using referral code system first
-              const { data: createResult, error: createError } = await supabaseAdmin.rpc("create_referral_from_code", {
-                p_referral_code: referralCode.trim(),
-                p_referred_address: message.user.toLowerCase(),
-              });
-              
-              if (!createError && createResult?.ok) {
-                console.log(`[predictions] Created referral for ${message.user} from referral code ${referralCode}`);
-                // Process rewards immediately
-                try {
-                  const { error: rewardError } = await supabaseAdmin.rpc("process_referral_rewards", {
-                    p_referred_address: message.user.toLowerCase(),
-                  });
-                  if (rewardError) {
-                    console.warn("Referral reward processing failed (non-fatal):", rewardError);
-                  }
-                } catch (rewardErr) {
-                  console.warn("Referral reward processing failed (non-fatal):", rewardErr);
-                }
-              } else if (createError) {
-                // Non-fatal: referral creation failed, but prediction should continue
-                console.warn("Referral creation failed (non-fatal):", createError.message);
-              } else if (createResult && !createResult.ok) {
-                // Invalid referral code (self-referral, already used, etc.)
-                console.warn(`Referral code validation failed (non-fatal): ${createResult.error || "unknown"}`);
-              }
-            } catch (createErr) {
-              // Non-fatal: continue with prediction even if referral creation fails
-              console.warn("Referral creation error (non-fatal, continuing normally):", createErr);
-            }
-          } else {
-            // Fallback: try old system with wallet address for backward compatibility
-            const referrerAddress = (body as { referrerAddress?: string })?.referrerAddress;
-            if (referrerAddress && /^0x[a-f0-9]{40}$/i.test(referrerAddress)) {
+        } else if (referralCode && typeof referralCode === "string" && referralCode.trim().length > 0) {
+          // No referral in database yet - try to create from referral code
+          try {
+            const { data: createResult, error: createError } = await supabaseAdmin.rpc("create_referral_from_code", {
+              p_referral_code: referralCode.trim(),
+              p_referred_address: userAddress,
+            });
+            
+            if (!createError && createResult?.ok) {
+              console.log(`[predictions] Created referral for ${user} from referral code ${referralCode}`);
+              // Process rewards immediately
               try {
-                const { data: createResult, error: createError } = await supabaseAdmin.rpc("create_referral", {
-                  p_referrer_address: referrerAddress.toLowerCase(),
-                  p_referred_address: message.user.toLowerCase(),
+                const { error: rewardError } = await supabaseAdmin.rpc("process_referral_rewards", {
+                  p_referred_address: userAddress,
                 });
-                
-                if (!createError && createResult?.ok) {
-                  console.log(`[predictions] Created referral for ${message.user} from referrer ${referrerAddress}`);
-                  // Process rewards immediately
-                  try {
-                    const { error: rewardError } = await supabaseAdmin.rpc("process_referral_rewards", {
-                      p_referred_address: message.user.toLowerCase(),
-                    });
-                    if (rewardError) {
-                      console.warn("Referral reward processing failed (non-fatal):", rewardError);
-                    }
-                  } catch (rewardErr) {
-                    console.warn("Referral reward processing failed (non-fatal):", rewardErr);
-                  }
-                } else if (createError) {
-                  // Non-fatal: referral creation failed, but prediction should continue
-                  console.warn("Referral creation failed (non-fatal):", createError.message);
+                if (rewardError) {
+                  console.warn("Referral reward processing failed (non-fatal):", rewardError);
                 }
-              } catch (createErr) {
-                // Non-fatal: continue with prediction even if referral creation fails
-                console.warn("Referral creation error (non-fatal, continuing normally):", createErr);
+              } catch (rewardErr) {
+                console.warn("Referral reward processing failed (non-fatal):", rewardErr);
               }
+            } else if (createError) {
+              console.warn("Referral creation failed (non-fatal):", createError.message);
+            } else if (createResult && !createResult.ok) {
+              console.warn(`Referral code validation failed (non-fatal): ${createResult.error || "unknown"}`);
             }
+          } catch (createErr) {
+            console.warn("Referral creation error (non-fatal, continuing normally):", createErr);
           }
         }
       }
     } catch (referralErr) {
       // Non-fatal: continue with prediction even if referral check fails
-      // This ensures users without referrals can use the app normally
       console.warn("Referral check error (non-fatal, continuing normally):", referralErr);
     }
 
-    // Insert prediction (unique by user+nonce)
-    const vaultIdNum = typeof message.vaultId === 'string' ? Number(message.vaultId) : Number(message.vaultId.toString());
-    let periodIdNum = typeof message.periodId === 'string' ? Number(message.periodId) : Number(message.periodId.toString());
-    const nonceNum = typeof message.nonce === 'string' ? Number(message.nonce) : Number(message.nonce.toString());
-    const deadlineNumForInsert = typeof message.deadline === 'string' ? Number(message.deadline) : Number(message.deadline.toString());
+    // Parse and validate period ID
+    const VAULT_ID = vaultId ? (typeof vaultId === 'string' ? Number(vaultId) : vaultId) : 1; // Default to 1
+    let periodIdNum = typeof periodId === 'string' ? Number(periodId) : periodId;
     
     // Check if period exists and if it has ended (automatic period advancement)
     const { data: periodData, error: periodError } = await supabaseAdmin
@@ -356,7 +260,7 @@ export async function POST(req: NextRequest) {
         .from("periods")
         .insert({
           period_id: actualPeriodId,
-          vault_id: vaultIdNum,
+          vault_id: VAULT_ID,
           status: 'open',
           starts_at: now.toISOString(),
           ends_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
@@ -375,20 +279,68 @@ export async function POST(req: NextRequest) {
     // Use the actual period ID (may have been advanced)
     periodIdNum = actualPeriodId;
     
+    // Save/update market metadata in markets table (for caching and status tracking)
+    if (marketTicker) {
+      try {
+        await supabaseAdmin
+          .from("markets")
+          .upsert({
+            market_id: marketId,
+            ticker: marketTicker,
+            title: marketTitle || null,
+            subtitle: null,
+            category: null,
+            status: null, // Will be updated by settle/check
+            close_ts: null,
+            open_interest: null,
+            volume: null,
+            raw: null,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: "market_id",
+            ignoreDuplicates: false
+          });
+      } catch (marketErr) {
+        // Non-fatal: continue with prediction even if market metadata save fails
+        console.warn("Failed to save market metadata (non-fatal):", marketErr);
+      }
+    }
+    
+    // Check for duplicate prediction (user + market + period + side)
+    const { data: existingPrediction } = await supabaseAdmin
+      .from("predictions")
+      .select("id")
+      .eq("user_address", userAddress)
+      .eq("market_id", marketId)
+      .eq("period_id", periodIdNum)
+      .eq("side_yes", sideYes)
+      .maybeSingle();
+    
+    if (existingPrediction) {
+      // Rollback energy
+      try {
+        await supabaseAdmin.rpc("grant_energy", { 
+          p_user: userAddress, 
+          p_amount: ENERGY_COST 
+        });
+      } catch {}
+      return NextResponse.json({ ok: false, error: "duplicate_prediction", message: "You have already made this prediction" }, { status: 409 });
+    }
+    
     const { data, error } = await supabaseAdmin
       .from("predictions")
       .insert({
-        user_address: message.user.toLowerCase(),
-        vault_id: vaultIdNum,
+        user_address: userAddress,
+        vault_id: VAULT_ID,
         period_id: periodIdNum,
-        market_id: message.marketId,
+        market_id: marketId,
         market_title: marketTitle || null,
         market_ticker: marketTicker || null,
-        side_yes: message.sideYes,
+        side_yes: sideYes,
         stake_points: ENERGY_COST, // Store energy cost as stake_points for compatibility
-        nonce: nonceNum,
-        deadline: deadlineNumForInsert,
-        signature,
+        nonce: Date.now(), // Use timestamp as nonce (for backward compatibility with DB schema)
+        deadline: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now (for backward compatibility)
+        signature: "", // Empty signature (for backward compatibility with DB schema)
       })
       .select()
       .single();
@@ -396,9 +348,8 @@ export async function POST(req: NextRequest) {
     if (error) {
       // rollback energy on insert failure
       try {
-        // Refund the 30 energy that was spent
         await supabaseAdmin.rpc("grant_energy", { 
-          p_user: message.user.toLowerCase(), 
+          p_user: userAddress, 
           p_amount: ENERGY_COST 
         });
       } catch {}
@@ -411,7 +362,7 @@ export async function POST(req: NextRequest) {
       const pgError = error as unknown as PostgresError;
       const code = pgError?.code || "";
       if (code === "23505") {
-        return NextResponse.json({ ok: false, error: "nonce_already_used" }, { status: 409 });
+        return NextResponse.json({ ok: false, error: "duplicate_prediction", message: "You have already made this prediction" }, { status: 409 });
       }
       // Foreign key violation (period_id doesn't exist)
       if (code === "23503") {
