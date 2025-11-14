@@ -143,6 +143,8 @@ export async function POST(req: NextRequest) {
 
     // Energy-only predictions: No USDC/vault cap check needed
     // Predictions are gated by energy cost only (30 energy per prediction)
+    // NOTE: message.stakePoints is included in the EIP-712 signature for compatibility
+    // but is NOT used to spend BET tokens - only energy is spent
 
     // Spend energy atomically before recording prediction
     // Each prediction costs 30 energy (fixed cost)

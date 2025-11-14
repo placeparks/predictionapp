@@ -12,6 +12,7 @@
     "test:nft-image": "tsx --tsconfig tsconfig.json scripts/test-nft-image.ts",
     "test:kalshi": "tsx --tsconfig tsconfig.json scripts/test-kalshi-env.ts",
     "test:kalshi-api": "tsx --tsconfig tsconfig.json scripts/test-kalshi-api.ts",
+    "test:settle-check": "tsx --tsconfig tsconfig.json scripts/test-settle-check.ts",
     "auto-resolve:watch": "tsx --tsconfig tsconfig.json scripts/auto-resolve-watcher.ts",
     "check-resolutions": "tsx --tsconfig tsconfig.json scripts/check-kalshi-resolutions.ts",
     "check-resolutions:watch": "tsx --tsconfig tsconfig.json scripts/check-kalshi-resolutions-watcher.ts"

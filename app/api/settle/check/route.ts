@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/db";
-import { getKalshiToken } from "@/app/api/kalshi/auth";
-
-const KALSHI_API_BASE = process.env.KALSHI_API_URL || 'https://api.elections.kalshi.com/trade-api/v2';
 
 /**
  * Auto-settlement checker - Checks Kalshi for resolved markets and settles predictions
@@ -91,28 +88,9 @@ async function handleSettleCheck(req: NextRequest) {
 
     console.log(`[settle/check] Checking ${uniqueMarkets.size} markets for resolution...`);
 
-    // Get Kalshi auth token
-    let token: string | null = null;
-    try {
-      token = await getKalshiToken();
-    } catch (authError) {
-      const authErrorMsg = authError instanceof Error ? authError.message : String(authError);
-      console.error("[settle/check] Error getting Kalshi token:", authErrorMsg);
-      return NextResponse.json({ 
-        ok: false, 
-        error: "kalshi_auth_failed",
-        message: `Failed to authenticate with Kalshi API: ${authErrorMsg}`
-      }, { status: 500 });
-    }
-    
-    if (!token) {
-      console.error("[settle/check] Kalshi token is null");
-      return NextResponse.json({ 
-        ok: false, 
-        error: "kalshi_auth_failed",
-        message: "Failed to authenticate with Kalshi API: token is null"
-      }, { status: 500 });
-    }
+    // Use public API - no authentication required
+    // Use our public API proxy which handles caching and fallback
+    const publicApiBase = new URL("/api/kalshi-public", req.nextUrl.origin).toString();
 
     const results = {
       checked: 0,
@@ -200,16 +178,16 @@ async function handleSettleCheck(req: NextRequest) {
           continue;
         }
 
-        // Fetch market from Kalshi API
-        const kalshiResponse = await fetch(
-          `${KALSHI_API_BASE}/markets/${ticker}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
+        // Fetch market from Kalshi public API (no authentication required)
+        const marketUrl = `${publicApiBase}/markets/${ticker}`;
+        
+        console.log(`[settle/check] Fetching market ${ticker} from public API: ${marketUrl}`);
+        const kalshiResponse = await fetch(marketUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'CardifyMiniApp/1.0'
           }
-        );
+        });
 
         if (!kalshiResponse.ok) {
           if (kalshiResponse.status === 404) {
