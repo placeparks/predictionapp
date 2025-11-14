@@ -433,7 +433,7 @@ function useHover(
                 closestShard = shard;
                 closestIndex = shard.userData.minterIndex;
               }
-            } catch (err) {
+            } catch {
               // Silently continue if calculation fails for this shard
             }
           }
