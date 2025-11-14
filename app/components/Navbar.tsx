@@ -5,6 +5,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import dynamic from "next/dynamic";
 
+
 // Dynamically import ConnectWallet
 const DynamicConnectWallet = dynamic(async () => {
   try {
