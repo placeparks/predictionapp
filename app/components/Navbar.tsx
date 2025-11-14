@@ -60,9 +60,14 @@ function HeaderEnergy({ address }: { address?: string }) {
   const [energy, setEnergy] = React.useState<number | null>(null);
   const [maxEnergy, setMaxEnergy] = React.useState<number>(100);
   const [nextRefillIn, setNextRefillIn] = React.useState<number>(0);
+  const [betTokens, setBetTokens] = React.useState<number | null>(null);
 
   const refreshEnergy = React.useCallback(async () => {
-    if (!address) { setEnergy(null); return; }
+    if (!address) { 
+      setEnergy(null);
+      setBetTokens(null);
+      return; 
+    }
     try {
       const r = await fetch(`/api/energy?user=${address}`);
       const j = await r.json().catch(() => ({}));
@@ -76,12 +81,39 @@ function HeaderEnergy({ address }: { address?: string }) {
     }
   }, [address]);
 
+  const refreshBetTokens = React.useCallback(async () => {
+    if (!address) { 
+      setBetTokens(null);
+      return; 
+    }
+    try {
+      const r = await fetch(`/api/points?user=${address}`);
+      const j = await r.json().catch(() => ({}));
+      if (j?.ok) {
+        const data = j.data || j;
+        const tokens = typeof data?.bet_tokens === 'number' 
+          ? data.bet_tokens 
+          : (typeof data?.points === 'number' ? data.points : Number(data?.points) || 0);
+        setBetTokens(tokens);
+      }
+    } catch (err) {
+      console.error("Failed to fetch BET tokens:", err);
+    }
+  }, [address]);
+
   React.useEffect(() => {
     refreshEnergy();
+    refreshBetTokens();
     // Refresh every second to update refill timer
-    const interval = setInterval(refreshEnergy, 1000);
+    const interval = setInterval(() => {
+      refreshEnergy();
+      // Refresh BET tokens every 5 seconds (less frequent than energy)
+      if (Math.floor(Date.now() / 1000) % 5 === 0) {
+        refreshBetTokens();
+      }
+    }, 1000);
     return () => clearInterval(interval);
-  }, [refreshEnergy]);
+  }, [refreshEnergy, refreshBetTokens]);
 
   React.useEffect(() => {
     const handleEnergyUpdate = (event: CustomEvent) => {
@@ -114,66 +146,112 @@ function HeaderEnergy({ address }: { address?: string }) {
 
   return (
     <div style={{
-      padding: '0.4rem 0.8rem',
-      background: 'rgba(255, 255, 255, 0.08)',
-      backdropFilter: 'blur(20px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-      border: `2px solid ${isLowEnergy ? 'rgba(255, 107, 53, 0.4)' : 'rgba(120, 208, 66, 0.4)'}`,
-      borderRadius: '12px',
-      color: '#fff',
-      fontSize: '0.8rem',
       display: 'flex',
       alignItems: 'center',
-      gap: '0.5rem',
-      position: 'relative',
-      overflow: 'hidden',
-      boxShadow: `0 4px 20px ${isLowEnergy ? 'rgba(255, 107, 53, 0.3)' : 'rgba(120, 208, 66, 0.3)'}`,
-      transition: 'all 0.3s ease',
-      whiteSpace: 'nowrap'
+      gap: '0.75rem',
+      flexWrap: 'wrap'
     }}>
-      {/* Animated background gradient */}
+      {/* BET Tokens Display */}
       <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: `${energyPercent}%`,
-        height: '100%',
-        background: `linear-gradient(90deg, ${isLowEnergy ? 'rgba(255, 107, 53, 0.2)' : 'rgba(120, 208, 66, 0.2)'}, ${isLowEnergy ? 'rgba(255, 152, 0, 0.2)' : 'rgba(78, 222, 128, 0.2)'})`,
-        transition: 'width 0.5s ease',
-        zIndex: 0
-      }} />
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', position: 'relative', zIndex: 1 }}>
+        padding: '0.4rem 0.8rem',
+        background: 'rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '2px solid rgba(255, 215, 0, 0.4)',
+        borderRadius: '12px',
+        color: '#fff',
+        fontSize: '0.8rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem',
+        boxShadow: '0 4px 20px rgba(255, 215, 0, 0.3)',
+        transition: 'all 0.3s ease',
+        whiteSpace: 'nowrap'
+      }}>
         <span style={{ 
-          fontSize: '0.7rem', 
-          opacity: 0.9,
-          fontWeight: 600,
-          color: 'rgba(255, 255, 255, 0.9)'
-        }}>
-          +{refillAmount}
-        </span>
-        <span style={{ 
-          fontSize: '1rem', 
-          filter: `drop-shadow(0 2px 8px ${isLowEnergy ? 'rgba(255, 107, 53, 0.6)' : 'rgba(120, 208, 66, 0.6)'})`,
-          animation: isLowEnergy ? 'pulse-glow 2s ease-in-out infinite' : 'none',
-        }}>⚡</span>
+          fontSize: '0.9rem',
+          filter: 'drop-shadow(0 2px 8px rgba(255, 215, 0, 0.6))',
+        }}>🪙</span>
         <span style={{ 
           fontWeight: 800, 
           fontSize: '0.85rem',
           textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
         }}>
-          {energy ?? 0}/{maxEnergy}
+          {betTokens !== null ? betTokens.toLocaleString() : '—'}
         </span>
-        {nextRefillIn > 0 && energy !== null && energy < maxEnergy && formatTime(nextRefillIn) && (
+        <span style={{ 
+          fontSize: '0.7rem', 
+          opacity: 0.8,
+          fontWeight: 600,
+          color: 'rgba(255, 255, 255, 0.8)'
+        }}>
+          BET
+        </span>
+      </div>
+
+      {/* Energy Display */}
+      <div style={{
+        padding: '0.4rem 0.8rem',
+        background: 'rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: `2px solid ${isLowEnergy ? 'rgba(255, 107, 53, 0.4)' : 'rgba(120, 208, 66, 0.4)'}`,
+        borderRadius: '12px',
+        color: '#fff',
+        fontSize: '0.8rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: `0 4px 20px ${isLowEnergy ? 'rgba(255, 107, 53, 0.3)' : 'rgba(120, 208, 66, 0.3)'}`,
+        transition: 'all 0.3s ease',
+        whiteSpace: 'nowrap'
+      }}>
+        {/* Animated background gradient */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${energyPercent}%`,
+          height: '100%',
+          background: `linear-gradient(90deg, ${isLowEnergy ? 'rgba(255, 107, 53, 0.2)' : 'rgba(120, 208, 66, 0.2)'}, ${isLowEnergy ? 'rgba(255, 152, 0, 0.2)' : 'rgba(78, 222, 128, 0.2)'})`,
+          transition: 'width 0.5s ease',
+          zIndex: 0
+        }} />
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', position: 'relative', zIndex: 1 }}>
           <span style={{ 
-            fontSize: '0.65rem', 
-            opacity: 0.8,
+            fontSize: '0.7rem', 
+            opacity: 0.9,
             fontWeight: 600,
-            color: 'rgba(255, 255, 255, 0.8)'
+            color: 'rgba(255, 255, 255, 0.9)'
           }}>
-            (+{refillAmount} in {formatTime(nextRefillIn)})
+            +{refillAmount}
           </span>
-        )}
+          <span style={{ 
+            fontSize: '1rem', 
+            filter: `drop-shadow(0 2px 8px ${isLowEnergy ? 'rgba(255, 107, 53, 0.6)' : 'rgba(120, 208, 66, 0.6)'})`,
+            animation: isLowEnergy ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+          }}>⚡</span>
+          <span style={{ 
+            fontWeight: 800, 
+            fontSize: '0.85rem',
+            textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
+          }}>
+            {energy ?? 0}/{maxEnergy}
+          </span>
+          {nextRefillIn > 0 && energy !== null && energy < maxEnergy && formatTime(nextRefillIn) && (
+            <span style={{ 
+              fontSize: '0.65rem', 
+              opacity: 0.8,
+              fontWeight: 600,
+              color: 'rgba(255, 255, 255, 0.8)'
+            }}>
+              (+{refillAmount} in {formatTime(nextRefillIn)})
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -196,10 +274,11 @@ export default function Navbar() {
   const currentTab = isHomePage ? (searchParams.get('tab') || 'home') : null;
   const showFAQ = isHomePage && searchParams.get('tab') === 'faq';
 
-  // Fetch energy
+  // Fetch energy and BET tokens
   useEffect(() => {
     if (!address) {
       setEnergy(null);
+      setBetTokens(null);
       return;
     }
     async function fetchEnergy() {
@@ -213,7 +292,23 @@ export default function Navbar() {
         console.error("Failed to fetch energy:", err);
       }
     }
+    async function fetchBetTokens() {
+      try {
+        const r = await fetch(`/api/points?user=${address}`);
+        const j = await r.json().catch(() => ({}));
+        if (j?.ok) {
+          const data = j.data || j;
+          const tokens = typeof data?.bet_tokens === 'number' 
+            ? data.bet_tokens 
+            : (typeof data?.points === 'number' ? data.points : Number(data?.points) || 0);
+          setBetTokens(tokens);
+        }
+      } catch (err) {
+        console.error("Failed to fetch BET tokens:", err);
+      }
+    }
     fetchEnergy();
+    fetchBetTokens();
     const handleEnergyUpdate = (event: CustomEvent) => {
       if (event.detail?.address?.toLowerCase() === address?.toLowerCase()) {
         fetchEnergy();
@@ -672,6 +767,21 @@ export default function Navbar() {
                 }}
               >
                 {address && (
+                  <>
+                    <div style={{ 
+                      padding: '0.75rem', 
+                      background: 'rgba(255, 255, 255, 0.1)', 
+                      border: '1px solid rgba(255, 215, 0, 0.3)', 
+                      borderRadius: '8px', 
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      minHeight: '44px'
+                    }}>
+                      <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>🪙 BET Tokens:</span>
+                      <strong style={{ color: '#FFD700', fontSize: '1rem' }}>{betTokens !== null ? betTokens.toLocaleString() : '—'}</strong>
+                    </div>
                   <div style={{ 
                     padding: '0.75rem', 
                     background: 'rgba(255, 255, 255, 0.1)', 
@@ -683,9 +793,10 @@ export default function Navbar() {
                     justifyContent: 'space-between',
                     minHeight: '44px'
                   }}>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>⚡ Energy:</span>
-                    <strong style={{ color: '#fff', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
+                      <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>⚡ Energy:</span>
+                      <strong style={{ color: '#fff', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
                   </div>
+                  </>
                 )}
                 <div className="wallet-connect-wrapper" style={{ width: '100%' }}>
                   <DynamicConnectWallet />

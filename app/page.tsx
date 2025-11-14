@@ -724,14 +724,17 @@ function HomeContent() {
 
         {showFAQ ? (
           <FAQ />
-        ) : activeTab === 'home' ? (
+        ) : (
           <>
-            {data && (
+            {/* Home content - always show when not FAQ */}
+            {activeTab === 'home' || activeTab === 'predictions' ? (
               <>
-                <div className="nft-card" style={{
-                  padding: '3rem',
-                  marginBottom: '3rem'
-                }}>
+                {data && (
+                  <>
+                    <div className="nft-card" style={{
+                      padding: '3rem',
+                      marginBottom: '3rem'
+                    }}>
                   <div className="nft-layout" style={{
                     display: 'grid',
                     gridTemplateColumns: 'auto 1fr',
@@ -1137,16 +1140,24 @@ function HomeContent() {
                 </p>
               </div>
             )}
+              </>
+            ) : null}
+            
+            {/* Predictions content - show below home when predictions tab is active */}
+            {activeTab === 'predictions' && (
+              <div style={{ marginTop: '3rem' }}>
+                <KalshiPredictions address={address || undefined} />
+              </div>
+            )}
+            
+            {/* Dashboard content - only show when dashboard tab is active */}
+            {activeTab === "dashboard" && (
+              <>
+                <PredictionsDashboard address={address || undefined} />
+              </>
+            )}
           </>
-        ) : activeTab === 'predictions' ? (
-          <>
-            <KalshiPredictions address={address || undefined} />
-          </>
-        ) : activeTab === "dashboard" ? (
-          <>
-            <PredictionsDashboard address={address || undefined} />
-          </>
-        ) : null}
+        )}
       </main>
     </>
   )
