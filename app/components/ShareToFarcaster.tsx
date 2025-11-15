@@ -26,7 +26,9 @@ export default function ShareToFarcaster(props: Props) {
 
     switch (props.kind) {
       case "nft": {
-        const image = props.imageUrl ?? `${baseUrl}/api/frames/nft.png?token=${props.tokenId ?? ""}`;
+        // Version parameter to bust cache when OG image styles change
+        const version = "v3";
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/nft.png?v=${version}&token=${props.tokenId ?? ""}`;
         const link = props.pageUrl ?? `${baseUrl}/nft/${props.tokenId ?? ""}`;
         return {
           text: "Minted my Neural Shard on Base. ⚡️",
@@ -78,7 +80,7 @@ export default function ShareToFarcaster(props: Props) {
   // (globe, referrals). Others default to image-only unless explicitly enabled.
   const linkEmbed = props.linkEmbed ?? (props.kind === "globe" || props.kind === "referral");
   // Use props.imageUrl directly if provided, otherwise use defaults.image
-  // This ensures all query parameters (tier, animal, art, etc.) are preserved
+  // This ensures all query parameters (tier, animal, art, v, etc.) are preserved
   let primaryImage = (props.imageUrl ?? defaults.image) as string | undefined;
   if (
     props.kind === "nft" &&
@@ -86,7 +88,10 @@ export default function ShareToFarcaster(props: Props) {
     primaryImage.includes("nft.png") &&
     !primaryImage.includes("fmt=")
   ) {
-    primaryImage = primaryImage.replace("nft.png?token=", "nft.png?fmt=png&token=");
+    // Add fmt=png while preserving all existing query parameters (v, token, tier, animal, art, etc.)
+    const url = new URL(primaryImage);
+    url.searchParams.set("fmt", "png");
+    primaryImage = url.toString();
   }
   const embeds = [
     primaryImage,
