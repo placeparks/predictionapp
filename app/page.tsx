@@ -7,6 +7,7 @@ import { base, baseSepolia } from "viem/chains";
 import { TrendingUp, Flame, Zap, Award } from 'lucide-react';
 import Image from 'next/image';
 import KalshiPredictions from './components/KalshiPredictions';
+import ShareToFarcaster from './components/ShareToFarcaster';
 import FAQ from './components/FAQ';
 import PredictionsDashboard from './components/PredictionsDashboard';
 
@@ -59,7 +60,7 @@ const ERC721_MINT_ABI = [
   }
 ];
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://predictionapp.vercel.app").replace(/\/$/, "");
+const _SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://predictionapp.vercel.app").replace(/\/$/, "");
 
 
 interface StatsData {
@@ -95,7 +96,7 @@ function HomeContent() {
   const [data, setData] = useState<StatsData | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'predictions' | 'dashboard' | 'faq'>("home");
   const [showFAQ, setShowFAQ] = useState<boolean>(false);
-  const [minting, setMinting] = useState<boolean>(false);
+  const [_minting, setMinting] = useState<boolean>(false);
   const [mintStatus, setMintStatus] = useState<string | null>(null);
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const [mintedTier, setMintedTier] = useState<number | null>(null);
@@ -109,9 +110,9 @@ function HomeContent() {
   useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { writeContract, data: hash, isPending: isMintPending } = useWriteContract();
+  const { writeContract, data: hash, isPending: _isMintPending } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
-  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  const { data: receipt, isLoading: _isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
   
   const contractAddress = (process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS || "");
 
@@ -283,7 +284,7 @@ function HomeContent() {
     fetchStats(false);
   }, [address, fetchStats]);
 
-  const handleMint = async () => {
+  const _handleMint = async () => {
     if (!address || !data?.stats) {
       setError("Please connect wallet and fetch stats first");
       return;
@@ -791,6 +792,11 @@ function HomeContent() {
                           {data?.animal === 'Wolf' && '🐺'}
                           {data?.animal === 'Serpent' && '🐍'}
                           {data?.animal && !['Tiger', 'Phoenix', 'Dragon', 'Wolf', 'Serpent'].includes(data.animal) && '🏆'}
+                        </div>
+                      )}
+                      {mintedTokenId !== null && (
+                        <div style={{ marginTop: '0.75rem' }}>
+                          <ShareToFarcaster kind="nft" tokenId={mintedTokenId} />
                         </div>
                       )}
                     </div>
