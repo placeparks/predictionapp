@@ -7,10 +7,10 @@ import { base, baseSepolia } from "viem/chains";
 import { TrendingUp, Flame, Zap, Award } from 'lucide-react';
 import Image from 'next/image';
 import KalshiPredictions from './components/KalshiPredictions';
-import ShareToFarcaster from './components/ShareToFarcaster';
 import FAQ from './components/FAQ';
 import PredictionsDashboard from './components/PredictionsDashboard';
-
+import ShareToFarcaster from './components/ShareToFarcaster';
+import { computeTier } from '@/lib/tier';
 
 // Prevent static generation - this page uses client-side hooks
 export const dynamic = 'force-dynamic';
@@ -60,7 +60,7 @@ const ERC721_MINT_ABI = [
   }
 ];
 
-const _SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://predictionapp.vercel.app").replace(/\/$/, "");
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://prophecy.house").replace(/\/$/, "");
 
 
 interface StatsData {
@@ -96,7 +96,7 @@ function HomeContent() {
   const [data, setData] = useState<StatsData | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'predictions' | 'dashboard' | 'faq'>("home");
   const [showFAQ, setShowFAQ] = useState<boolean>(false);
-  const [_minting, setMinting] = useState<boolean>(false);
+  const [minting, setMinting] = useState<boolean>(false);
   const [mintStatus, setMintStatus] = useState<string | null>(null);
   const [mintedTokenId, setMintedTokenId] = useState<number | null>(null);
   const [mintedTier, setMintedTier] = useState<number | null>(null);
@@ -110,9 +110,9 @@ function HomeContent() {
   useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { writeContract, data: hash, isPending: _isMintPending } = useWriteContract();
+  const { writeContract, data: hash, isPending: isMintPending } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
-  const { data: receipt, isLoading: _isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
   
   const contractAddress = (process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS || "");
 
@@ -284,7 +284,7 @@ function HomeContent() {
     fetchStats(false);
   }, [address, fetchStats]);
 
-  const _handleMint = async () => {
+  const handleMint = async () => {
     if (!address || !data?.stats) {
       setError("Please connect wallet and fetch stats first");
       return;
@@ -513,11 +513,10 @@ function HomeContent() {
       findTokenId();
     }
   }, [hasBalance, balance, mintedTokenId, address, contractAddress]);
-
   return (
     <>
       {/* Floating Particles Background */}
-      <div style={{
+          <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -550,7 +549,7 @@ function HomeContent() {
         style={{
           maxWidth: "1400px",
           margin: "0 auto",
-          padding: "3rem 2rem",
+          padding: "clamp(1rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem)",
           position: 'relative',
           zIndex: 1
         }}
@@ -719,11 +718,81 @@ function HomeContent() {
           @media (max-width: 768px) {
             .nft-card {
               border-radius: 24px !important;
+              padding: 1.5rem !important;
             }
             .stat-card {
               border-radius: 20px !important;
-                    }
-                  }
+              padding: 1.5rem !important;
+            }
+            .nft-layout {
+              grid-template-columns: 1fr !important;
+              gap: 1.5rem !important;
+            }
+            .nft-image {
+              width: 180px !important;
+              height: 180px !important;
+              margin: 0 auto !important;
+              font-size: 4rem !important;
+            }
+            .nft-content {
+              text-align: center !important;
+            }
+            .shimmer-title {
+              font-size: 1.75rem !important;
+              line-height: 1.3 !important;
+            }
+            .nft-buttons {
+              flex-direction: column !important;
+            }
+            .nft-buttons button {
+              width: 100% !important;
+              padding: 0.875rem 1.5rem !important;
+              font-size: 0.9rem !important;
+            }
+            .stats-grid {
+              grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+              gap: 1rem !important;
+            }
+            .stat-card .stat-value {
+              font-size: 2rem !important;
+            }
+            .stat-card .stat-label {
+              font-size: 0.8rem !important;
+            }
+            .stat-icon {
+              width: 28px !important;
+              height: 28px !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .nft-card {
+              padding: 1.25rem !important;
+              border-radius: 20px !important;
+            }
+            .nft-image {
+              width: 150px !important;
+              height: 150px !important;
+              font-size: 3.5rem !important;
+            }
+            .shimmer-title {
+              font-size: 1.5rem !important;
+            }
+            .stats-grid {
+              grid-template-columns: 1fr 1fr !important;
+              gap: 0.75rem !important;
+            }
+            .stat-card {
+              padding: 1.25rem !important;
+            }
+            .stat-card .stat-value {
+              font-size: 1.75rem !important;
+            }
+            .stat-icon {
+              width: 24px !important;
+              height: 24px !important;
+            }
+          }
                 `}</style>
 
         {showFAQ ? (
@@ -732,7 +801,7 @@ function HomeContent() {
           <>
             {/* Predictions content - show FIRST when predictions tab is active */}
             {activeTab === 'predictions' && (
-              <div style={{ marginBottom: '3rem' }}>
+              <div style={{ marginBottom: 'clamp(1.5rem, 4vw, 3rem)' }}>
                 <KalshiPredictions address={address || undefined} />
               </div>
             )}
@@ -743,25 +812,26 @@ function HomeContent() {
                 {data && (
                   <>
                     <div className="nft-card" style={{
-                      padding: '3rem',
-                      marginBottom: '3rem'
+                      padding: 'clamp(1.25rem, 4vw, 3rem)',
+                      marginBottom: 'clamp(1.5rem, 4vw, 3rem)'
                     }}>
                   <div className="nft-layout" style={{
                     display: 'grid',
                     gridTemplateColumns: 'auto 1fr',
-                    gap: '3rem',
+                    gap: 'clamp(1.5rem, 4vw, 3rem)',
                     alignItems: 'center'
                   }}>
                     <div className="nft-image" style={{
-                      width: '240px',
-                      height: '240px',
+                      width: 'clamp(150px, 20vw, 240px)',
+                      height: 'clamp(150px, 20vw, 240px)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '5rem',
+                      fontSize: 'clamp(3.5rem, 8vw, 5rem)',
                       flexShrink: 0,
                       position: 'relative',
-                      zIndex: 1
+                      zIndex: 1,
+                      margin: '0 auto'
                     }}>
                       {mintedTokenId !== null ? (
                         <Image
@@ -794,35 +864,147 @@ function HomeContent() {
                           {data?.animal && !['Tiger', 'Phoenix', 'Dragon', 'Wolf', 'Serpent'].includes(data.animal) && '🏆'}
                         </div>
                       )}
-                      {mintedTokenId !== null && (
-                        <div style={{ marginTop: '0.75rem' }}>
-                          <ShareToFarcaster kind="nft" tokenId={mintedTokenId} />
-                        </div>
-                      )}
                     </div>
+
+                    <div className="nft-content" style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1rem, 3vw, 1.5rem)', position: 'relative', zIndex: 1 }}>
+                      <div>
+                        <h2 className="shimmer-title" style={{ 
+                          margin: '0 0 clamp(0.5rem, 2vw, 0.75rem) 0', 
+                          fontSize: 'clamp(1.5rem, 5vw, 2.5rem)',
+                          lineHeight: '1.2'
+                        }}>
+                          Tier {mintedTier ?? data?.tier ?? 0} {mintedAnimal ?? data?.animal ?? ''}
+                        </h2>
+                        <p style={{ 
+                          margin: 0, 
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          fontSize: 'clamp(0.9rem, 2.5vw, 1.1rem)',
+                          fontWeight: 500
+                        }}>
+                          {hasBalance ? '✨ Your on-chain identity badge' : '🎯 Eligible for minting'}
+                        </p>
+                      </div>
+
+                      <div className="nft-buttons" style={{ display: 'flex', gap: 'clamp(0.75rem, 2vw, 1rem)', flexWrap: 'wrap' }}>
+                        {(() => {
+                          const currentTier = mintedTier ?? data?.tier ?? 0;
+                          const newTier = data?.stats ? computeTier({
+                            tx_count: data.stats.tx_count,
+                            unique_peers: data.stats.unique_peers ?? 0,
+                            erc20_count: data.stats.erc20_count ?? 0,
+                            erc20_usd: data.stats.erc20_usd ?? 0,
+                            nft_collections: data.stats.nft_collections ?? 0,
+                            nft_count: data.stats.nft_count,
+                            has_basename: data.stats.has_basename ?? false,
+                            basename: data.stats.basename
+                          }) : 0;
+                          const canUpgrade = hasBalance && newTier > currentTier;
+                          const canMint = !hasBalance && newTier >= 1;
+                          const isDisabled = minting || isMintPending || isConfirming || (hasBalance && !canUpgrade);
+                          
+                          return (
+                            <button
+                              onClick={handleMint}
+                              disabled={isDisabled}
+                              className="vibrant-button"
+                              style={{
+                                padding: 'clamp(0.875rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
+                                fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                position: 'relative',
+                                zIndex: 1,
+                                width: '100%',
+                                minWidth: 'fit-content'
+                              }}
+                              title={hasBalance && !canUpgrade 
+                                ? `You need to qualify for a higher tier (Tier ${currentTier + 1}+) to upgrade. Current: Tier ${currentTier}, Qualify for: Tier ${newTier}`
+                                : undefined}
+                            >
+                              <span style={{ position: 'relative', zIndex: 2 }}>
+                              {minting || isMintPending || isConfirming
+                                  ? (mintStatus || "⏳ Processing...")
+                                : hasBalance
+                                  ? canUpgrade
+                                    ? `⬆️ Upgrade to Tier ${newTier}`
+                                    : `⬆️ Upgrade NFT (Tier ${newTier}, need ${currentTier + 1}+)`
+                                  : canMint
+                                    ? "✨ Mint NFT"
+                                    : "✨ Mint NFT (Requirements not met)"}
+                              </span>
+                            </button>
+                          );
+                        })()}
+
+                        <button
+                          onClick={() => fetchStats(true)}
+                          disabled={loading}
+                          className="bounce-btn"
+                          style={{
+                            padding: 'clamp(0.875rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            backdropFilter: 'blur(10px)',
+                            border: '2px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: '16px',
+                            color: '#fff',
+                            fontWeight: 700,
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
+                            opacity: loading ? 0.6 : 1,
+                            transition: 'all 0.3s',
+                            position: 'relative',
+                            zIndex: 1,
+                            width: '100%',
+                            minWidth: 'fit-content'
+                          }}
+                        >
+                          {loading ? '⟳' : '🔄'} Refresh
+                        </button>
+                        {mintedTokenId !== null && (() => {
+                          const shareTierValue = mintedTier ?? data?.tier ?? null;
+                          const shareAnimalValue = mintedAnimal ?? data?.animal ?? null;
+                          const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
+                          const animalLabel = shareAnimalValue ?? "Neural Shard";
+                          const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
+                          // Include the actual NFT image via art parameter, use small JPEG for optimal sharing
+                          const nftImageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
+                          const imageUrl = `${SITE_URL}/api/frames/nft.png?token=${mintedTokenId}&tier=${encodeURIComponent(tierLabel)}&animal=${encodeURIComponent(animalLabel)}&size=small&fmt=jpeg&art=${encodeURIComponent(nftImageUrl)}`;
+                          return (
+                            <ShareToFarcaster
+                              kind="nft"
+                              wallet={address || undefined}
+                              tokenId={mintedTokenId}
+                              text={shareText}
+                              imageUrl={imageUrl}
+                              pageUrl={`${SITE_URL}/nft/${mintedTokenId}`}
+                            />
+                          );
+                        })()}
+                      </div>
 
                       {mintStatus && (
                         <div style={{
-                          fontSize: '1rem',
+                          fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
                           color: 'rgba(255, 255, 255, 0.9)',
-                          padding: '1rem 1.5rem',
+                          padding: 'clamp(0.875rem, 2vw, 1rem) clamp(1rem, 3vw, 1.5rem)',
                           background: 'rgba(120, 208, 66, 0.2)',
                           backdropFilter: 'blur(10px)',
                           border: '2px solid rgba(120, 208, 66, 0.4)',
                           borderRadius: '12px',
-                          animation: 'slide-up 0.4s ease-out'
+                          animation: 'slide-up 0.4s ease-out',
+                          textAlign: 'center'
                         }}>
                           ✨ {mintStatus}
                         </div>
                       )}
                     </div>
                   </div>
+                </div>
 
                 <div className="stats-grid" style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                  gap: '1.5rem',
-                  marginTop: '2rem',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))',
+                  gap: 'clamp(0.75rem, 3vw, 1.5rem)',
+                  marginTop: 'clamp(1.5rem, 4vw, 2rem)',
                   width: '100%',
                   visibility: 'visible',
                   opacity: 1
@@ -836,15 +1018,15 @@ function HomeContent() {
                     const Icon = stat.icon;
                     return (
                       <div key={i} className="stat-card interactive-card" style={{
-                        padding: '2rem',
+                        padding: 'clamp(1.25rem, 3vw, 2rem)',
                         cursor: 'pointer',
                         position: 'relative'
                       }}>
                         <div style={{
                           position: 'absolute',
-                          top: '1rem',
-                          right: '1rem',
-                          fontSize: '2rem',
+                          top: 'clamp(0.75rem, 2vw, 1rem)',
+                          right: 'clamp(0.75rem, 2vw, 1rem)',
+                          fontSize: 'clamp(1.5rem, 4vw, 2rem)',
                           opacity: 0.3,
                           animation: 'float 3s ease-in-out infinite',
                           animationDelay: `${i * 0.2}s`
@@ -852,15 +1034,17 @@ function HomeContent() {
                           {stat.emoji}
                         </div>
                         <Icon className="stat-icon" size={36} color={stat.color} style={{ 
-                          marginBottom: '1rem',
+                          marginBottom: 'clamp(0.75rem, 2vw, 1rem)',
                           filter: `drop-shadow(0 4px 12px ${stat.color}80)`,
                           animation: 'pulse-glow 2s ease-in-out infinite',
-                          animationDelay: `${i * 0.3}s`
+                          animationDelay: `${i * 0.3}s`,
+                          width: 'clamp(24px, 6vw, 36px)',
+                          height: 'clamp(24px, 6vw, 36px)'
                         }} />
                         <div className="stat-value" style={{ 
-                          fontSize: '2.5rem', 
+                          fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', 
                           fontWeight: 900, 
-                          marginBottom: '0.5rem', 
+                          marginBottom: 'clamp(0.25rem, 1vw, 0.5rem)', 
                           color: '#fff',
                           textShadow: `0 4px 20px ${stat.color}60`,
                           background: `linear-gradient(135deg, ${stat.color}, ${stat.color}dd)`,
@@ -871,7 +1055,7 @@ function HomeContent() {
                           {stat.value}
                         </div>
                         <div className="stat-label" style={{ 
-                          fontSize: '0.9rem', 
+                          fontSize: 'clamp(0.75rem, 2vw, 0.9rem)', 
                           color: 'rgba(255, 255, 255, 0.8)', 
                           textTransform: 'uppercase', 
                           letterSpacing: '1px',
@@ -888,28 +1072,28 @@ function HomeContent() {
             {/* Referral Code Input Section - Show when connected but no referral submitted */}
             {address && !referralSubmitted && (
               <div className="glass-card-dark" style={{ 
-                padding: '2.5rem', 
-                borderRadius: '32px',
+                padding: 'clamp(1.5rem, 4vw, 2.5rem)', 
+                borderRadius: 'clamp(24px, 6vw, 32px)',
                 border: '2px solid rgba(255, 215, 0, 0.3)',
                 animation: 'scale-in 0.6s ease-out',
-                marginTop: '3rem',
-                marginBottom: '3rem',
+                marginTop: 'clamp(1.5rem, 4vw, 3rem)',
+                marginBottom: 'clamp(1.5rem, 4vw, 3rem)',
                 background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 107, 53, 0.1))',
                 boxShadow: '0 20px 60px rgba(255, 215, 0, 0.2)'
               }}>
-                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'float 3s ease-in-out infinite' }}>🎁</div>
-                  <h3 className="shimmer-text" style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 800, color: '#FFD700' }}>
+                <div style={{ textAlign: 'center', marginBottom: 'clamp(1rem, 3vw, 1.5rem)' }}>
+                  <div style={{ fontSize: 'clamp(2.5rem, 8vw, 3rem)', marginBottom: 'clamp(0.25rem, 1vw, 0.5rem)', animation: 'float 3s ease-in-out infinite' }}>🎁</div>
+                  <h3 className="shimmer-text" style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', marginBottom: 'clamp(0.25rem, 1vw, 0.5rem)', fontWeight: 800, color: '#FFD700' }}>
                     Enter Referral Code
                   </h3>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1.1rem', marginBottom: '0.25rem', fontWeight: 600 }}>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)', marginBottom: 'clamp(0.125rem, 0.5vw, 0.25rem)', fontWeight: 600 }}>
                     Get <span style={{ color: '#FFD700', fontWeight: 800 }}>50 BET Tokens</span> when you use a referral code!
                   </p>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 'clamp(0.8rem, 2vw, 0.9rem)' }}>
                     Paste your friend&apos;s referral link or code (PROPH-XXXXX)
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', gap: 'clamp(0.75rem, 2vw, 1rem)', flexDirection: 'column' }}>
                   <input
                     type="text"
                     placeholder="PROPH-XXXXX or paste referral link"
@@ -932,12 +1116,12 @@ function HomeContent() {
                     }}
                     style={{
                       width: '100%',
-                      padding: '1rem 1.25rem',
+                      padding: 'clamp(0.875rem, 2vw, 1rem) clamp(1rem, 3vw, 1.25rem)',
                       borderRadius: '16px',
                       border: referralError ? '2px solid rgba(239, 68, 68, 0.5)' : '2px solid rgba(255, 215, 0, 0.3)',
                         background: 'rgba(0, 0, 0, 0.3)',
                       color: '#fff',
-                      fontSize: '1rem',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
                       outline: 'none',
                       transition: 'all 0.3s',
                       fontFamily: 'monospace'
@@ -952,7 +1136,7 @@ function HomeContent() {
                     }}
                   />
                   {referralError && (
-                    <p style={{ color: '#ef4444', fontSize: '0.875rem', margin: '-0.5rem 0 0 0', textAlign: 'center' }}>
+                    <p style={{ color: '#ef4444', fontSize: 'clamp(0.75rem, 2vw, 0.875rem)', margin: '-0.5rem 0 0 0', textAlign: 'center' }}>
                       {referralError}
                     </p>
                   )}
@@ -960,20 +1144,21 @@ function HomeContent() {
                     onClick={handleReferralSubmit}
                     disabled={referralProcessing || !referralCode}
                     style={{
-                      padding: '1rem 2rem',
+                      padding: 'clamp(0.875rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem)',
                         borderRadius: '16px',
                       background: referralProcessing || !referralCode 
                         ? 'rgba(255, 255, 255, 0.1)' 
                         : 'linear-gradient(135deg, #FFD700, #FFA500)',
                       border: '2px solid rgba(255, 215, 0, 0.5)',
                       color: '#000',
-                      fontSize: '1rem',
+                      fontSize: 'clamp(0.875rem, 2.5vw, 1rem)',
                       fontWeight: 800,
                       cursor: referralProcessing || !referralCode ? 'not-allowed' : 'pointer',
                       transition: 'all 0.3s',
                       opacity: referralProcessing || !referralCode ? 0.6 : 1,
                       textTransform: 'uppercase',
-                      letterSpacing: '1px'
+                      letterSpacing: '1px',
+                      width: '100%'
                     }}
                     onMouseEnter={(e) => {
                       if (!referralProcessing && referralCode) {
@@ -990,9 +1175,9 @@ function HomeContent() {
                   </button>
                   <p style={{ 
                     color: 'rgba(255, 255, 255, 0.6)', 
-                    fontSize: '0.75rem', 
+                    fontSize: 'clamp(0.7rem, 2vw, 0.75rem)', 
                     textAlign: 'center',
-                    marginTop: '0.5rem'
+                    marginTop: 'clamp(0.25rem, 1vw, 0.5rem)'
                   }}>
                     You can skip this step if you don&apos;t have a referral code
                   </p>
@@ -1003,21 +1188,21 @@ function HomeContent() {
             {/* Show success message if referral was submitted */}
             {address && referralSubmitted && (
               <div className="glass-card-dark" style={{ 
-                padding: '1.5rem', 
-                borderRadius: '24px',
+                padding: 'clamp(1.25rem, 3vw, 1.5rem)', 
+                borderRadius: 'clamp(20px, 5vw, 24px)',
                 border: '2px solid rgba(34, 197, 94, 0.3)',
-                marginTop: '3rem',
-                marginBottom: '3rem',
+                marginTop: 'clamp(1.5rem, 4vw, 3rem)',
+                marginBottom: 'clamp(1.5rem, 4vw, 3rem)',
                 background: 'rgba(34, 197, 94, 0.1)',
                 animation: 'scale-in 0.6s ease-out'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ fontSize: '2rem' }}>✅</div>
-                  <div>
-                    <p style={{ color: '#fff', fontSize: '1rem', fontWeight: 700, margin: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(0.75rem, 2vw, 1rem)', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', flexShrink: 0 }}>✅</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ color: '#fff', fontSize: 'clamp(0.9rem, 2.5vw, 1rem)', fontWeight: 700, margin: 0 }}>
                       Referral Code Applied!
                     </p>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
+                    <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 'clamp(0.8rem, 2vw, 0.875rem)', margin: 'clamp(0.125rem, 0.5vw, 0.25rem) 0 0 0' }}>
                       You&apos;ll receive 50 BET tokens when you make your first prediction
                     </p>
                       </div>
@@ -1028,16 +1213,16 @@ function HomeContent() {
             {!data && !loading && (
               <div className="glass-card-dark" style={{ 
                 textAlign: 'center', 
-                padding: '4rem 2rem', 
-                borderRadius: '32px',
+                padding: 'clamp(2rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2rem)', 
+                borderRadius: 'clamp(24px, 6vw, 32px)',
                 border: '2px solid rgba(255, 255, 255, 0.2)',
                 animation: 'scale-in 0.6s ease-out'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem', animation: 'float 3s ease-in-out infinite' }}>🔮</div>
-                <h3 className="shimmer-text" style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 800 }}>
+                <div style={{ fontSize: 'clamp(3rem, 10vw, 4rem)', marginBottom: 'clamp(0.75rem, 2vw, 1rem)', animation: 'float 3s ease-in-out infinite' }}>🔮</div>
+                <h3 className="shimmer-text" style={{ fontSize: 'clamp(1.25rem, 4vw, 1.5rem)', marginBottom: 'clamp(0.25rem, 1vw, 0.5rem)', fontWeight: 800 }}>
                   Connect Your Wallet
                 </h3>
-                <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '1.1rem' }}>
+                <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)' }}>
                   Connect your wallet to view your stats and start making predictions!
                 </p>
           </div>
@@ -1045,26 +1230,26 @@ function HomeContent() {
             {loading && (
               <div className="glass-card-dark" style={{ 
                 textAlign: 'center', 
-                padding: '4rem 2rem', 
-                borderRadius: '32px',
+                padding: 'clamp(2rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2rem)', 
+                borderRadius: 'clamp(24px, 6vw, 32px)',
                 border: '2px solid rgba(255, 255, 255, 0.2)',
                 animation: 'scale-in 0.6s ease-out'
               }}>
                 <div style={{ 
-                  width: '60px', 
-                  height: '60px', 
+                  width: 'clamp(50px, 12vw, 60px)', 
+                  height: 'clamp(50px, 12vw, 60px)', 
                   border: '4px solid rgba(255, 107, 53, 0.3)',
                   borderTop: '4px solid #ff6b35',
                   borderRadius: '50%',
                   animation: 'spin 1s linear infinite',
-                  margin: '0 auto 1.5rem'
+                  margin: '0 auto clamp(1rem, 3vw, 1.5rem)'
                 }} />
-                <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem', fontWeight: 600 }}>
+                <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)', fontWeight: 600 }}>
                   Loading your stats...
                 </p>
               </div>
             )}
-            </>
+              </>
             ) : null}
             
             {/* Dashboard content - only show when dashboard tab is active */}
@@ -1111,3 +1296,4 @@ export default function Home() {
     </Suspense>
   );
 }
+
