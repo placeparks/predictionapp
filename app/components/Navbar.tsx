@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
@@ -266,8 +266,13 @@ export default function Navbar() {
   const router = useRouter();
   const { address } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [predictionsDropdownOpen, setPredictionsDropdownOpen] = useState(false);
   const [energy, setEnergy] = useState<number | null>(null);
   const [betTokens, setBetTokens] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownContentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
@@ -327,15 +332,10 @@ export default function Navbar() {
   // Navigation handlers
   const handleNavClick = (tab: string) => {
     setMobileMenuOpen(false);
-    if (isHomePage) {
-      if (tab === 'faq') {
-        router.push('/?tab=faq');
-      } else {
-        router.push(`/?tab=${tab}`);
-      }
-    } else {
-      router.push(`/?tab=${tab}`);
-    }
+    const url = tab === 'faq' ? '/?tab=faq' : `/?tab=${tab}`;
+    // Use router.push - it should work correctly with Next.js App Router
+    // If on same page, router.push will still update the URL and trigger searchParams change
+    router.push(url);
   };
 
   const handleFAQClick = () => {
@@ -345,8 +345,87 @@ export default function Navbar() {
 
   const handleBaseDailyClick = () => {
     setMobileMenuOpen(false);
+    setPredictionsDropdownOpen(false);
     router.push('/base-daily');
   };
+
+  const handleKalshiPredictionsClick = () => {
+    setPredictionsDropdownOpen(false);
+    handleNavClick('predictions');
+  };
+
+  // Position dropdown and close when clicking outside
+  useEffect(() => {
+    const updateDropdownPosition = () => {
+      if (predictionsDropdownOpen && dropdownRef.current && dropdownContentRef.current) {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          // On mobile, use relative positioning
+          dropdownContentRef.current.style.position = 'absolute';
+          dropdownContentRef.current.style.top = '100%';
+          dropdownContentRef.current.style.left = '0';
+          dropdownContentRef.current.style.right = 'auto';
+        } else {
+          // On desktop, use fixed positioning
+          const rect = dropdownRef.current.getBoundingClientRect();
+          dropdownContentRef.current.style.position = 'fixed';
+          dropdownContentRef.current.style.top = `${rect.bottom + 8}px`;
+          dropdownContentRef.current.style.left = `${rect.left}px`;
+        }
+      }
+    };
+
+    updateDropdownPosition();
+    window.addEventListener('resize', updateDropdownPosition);
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (dropdownRef.current && !dropdownRef.current.contains(target) && 
+          dropdownContentRef.current && !dropdownContentRef.current.contains(target)) {
+        setPredictionsDropdownOpen(false);
+      }
+    };
+
+    if (predictionsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('resize', updateDropdownPosition);
+      };
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateDropdownPosition);
+    };
+  }, [predictionsDropdownOpen]);
+
+  // Position mobile menu below header and handle click outside
+  useEffect(() => {
+    if (mobileMenuOpen && headerRef.current && mobileMenuRef.current) {
+      const headerRect = headerRef.current.getBoundingClientRect();
+      mobileMenuRef.current.style.top = `${headerRect.bottom}px`;
+    }
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (mobileMenuOpen && 
+          headerRef.current && 
+          !headerRef.current.contains(target) &&
+          mobileMenuRef.current &&
+          !mobileMenuRef.current.contains(target)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
+    }
+  }, [mobileMenuOpen]);
 
   return (
     <>
@@ -465,6 +544,139 @@ export default function Navbar() {
           animation: pulse-glow 2s ease-in-out infinite !important;
         }
 
+        .predictions-dropdown {
+          position: relative;
+          display: inline-block;
+          z-index: 1001;
+        }
+
+        .predictions-dropdown-content {
+          position: fixed;
+          background: linear-gradient(135deg, rgba(0, 0, 0, 0.98), rgba(20, 20, 30, 0.98)) !important;
+          backdrop-filter: blur(40px) saturate(200%) !important;
+          -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+          border: 2px solid rgba(255, 215, 0, 0.4) !important;
+          border-radius: 16px !important;
+          box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.6),
+            0 0 40px rgba(255, 215, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+          min-width: 220px;
+          padding: 1rem 0.5rem !important;
+          z-index: 10000;
+          overflow: hidden;
+          animation: slide-down-glow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        @media (max-width: 768px) {
+          .predictions-dropdown {
+            display: none !important;
+          }
+          .predictions-dropdown-content {
+            display: none !important;
+          }
+        }
+
+        .predictions-dropdown-content::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, #ff6b35, #f7931e, #fdb825, #78d042, #4a90e2, #ff6b35);
+          background-size: 200% 100%;
+          animation: shimmer 3s linear infinite;
+          z-index: 1;
+          pointer-events: none;
+        }
+
+        .predictions-dropdown-item {
+          display: block;
+          padding: 1.25rem 1.5rem !important;
+          min-height: 56px !important;
+          color: #FFD700 !important;
+          text-decoration: none !important;
+          font-weight: 800 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 1px !important;
+          font-size: clamp(0.7rem, 1.2vw, 0.8rem) !important;
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+          background: transparent !important;
+          border-left: 4px solid transparent !important;
+          border-radius: 10px !important;
+          cursor: pointer !important;
+          position: relative;
+          overflow: hidden;
+          margin: 0 0.5rem !important;
+        }
+
+        .predictions-dropdown-item::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.15), transparent);
+          transition: left 0.5s ease;
+        }
+
+        .predictions-dropdown-item:hover::before {
+          left: 100%;
+        }
+
+
+        .predictions-dropdown-item:hover {
+          background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.08)) !important;
+          border-left-color: #FFD700 !important;
+          transform: translateX(6px) scale(1.02) !important;
+          box-shadow: 
+            inset 0 0 20px rgba(255, 215, 0, 0.2),
+            0 4px 15px rgba(255, 215, 0, 0.3) !important;
+          color: #fff !important;
+          text-shadow: 0 0 10px rgba(255, 215, 0, 0.8) !important;
+        }
+
+        .predictions-dropdown-item.active {
+          background: linear-gradient(90deg, rgba(255, 215, 0, 0.2), rgba(255, 215, 0, 0.1)) !important;
+          border-left-color: #FFD700 !important;
+          box-shadow: 
+            inset 0 0 25px rgba(255, 215, 0, 0.25),
+            0 0 20px rgba(255, 215, 0, 0.4) !important;
+          color: #fff !important;
+          text-shadow: 0 0 15px rgba(255, 215, 0, 1) !important;
+        }
+
+        .predictions-dropdown-item:active {
+          transform: translateX(4px) scale(0.98) !important;
+        }
+
+        @keyframes slide-down-glow {
+          from {
+            opacity: 0;
+            transform: translateY(-15px) scale(0.95);
+            filter: blur(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: 200% 0;
+          }
+          100% {
+            background-position: -200% 0;
+          }
+        }
+
         .wallet-connect-wrapper :global(button),
         .wallet-connect-wrapper :global([role="button"]) {
           background: linear-gradient(135deg, #78d042, #4a90e2) !important;
@@ -518,6 +730,9 @@ export default function Navbar() {
           border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
           animation: slide-up 0.3s ease-out !important;
+          z-index: 99 !important;
+          display: block !important;
+          visibility: visible !important;
         }
 
         .mobile-menu-item {
@@ -554,6 +769,11 @@ export default function Navbar() {
           font-size: 1.2rem !important;
           transition: all 0.3s !important;
           cursor: pointer !important;
+          z-index: 101 !important;
+          position: relative !important;
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
         }
 
         .mobile-menu-btn:hover {
@@ -577,12 +797,29 @@ export default function Navbar() {
         @media (max-width: 768px) {
           .main-header {
             padding: 1rem !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 100 !important;
+            display: flex !important;
+            visibility: visible !important;
+            width: 100% !important;
           }
           .desktop-nav {
             display: none !important;
           }
           .wallet-section {
             order: 2;
+            flex-shrink: 0 !important;
+          }
+          .predictions-dropdown {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 101 !important;
+            flex-shrink: 0 !important;
           }
         }
 
@@ -593,6 +830,7 @@ export default function Navbar() {
         }
       `}</style>
       <header
+        ref={headerRef}
         className="main-header"
         style={{
           padding: "clamp(0.75rem, 1.5vw, 1.25rem) clamp(1rem, 2.5vw, 2rem)",
@@ -666,28 +904,39 @@ export default function Navbar() {
                 textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >Home</button>
-            <button
-              onClick={() => handleNavClick('predictions')}
-              className={(isHomePage && currentTab === 'predictions') ? 'active' : ''}
-              style={{
-                background: (isHomePage && currentTab === 'predictions') ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-                border: (isHomePage && currentTab === 'predictions') ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
-                color: (isHomePage && currentTab === 'predictions') ? '#FFD700' : '#FFD700',
-                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
-              }}
-            >Predictions</button>
-            <button
-              onClick={handleBaseDailyClick}
-              className={isBaseDailyPage ? 'active' : ''}
-              style={{
-                background: isBaseDailyPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-                border: isBaseDailyPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
-                color: isBaseDailyPage ? '#FFD700' : '#FFD700',
-                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
-              }}
-            >Base Daily</button>
+            <div ref={dropdownRef} className={`predictions-dropdown ${predictionsDropdownOpen ? 'open' : ''}`}>
+              <button
+                onClick={() => setPredictionsDropdownOpen(!predictionsDropdownOpen)}
+                className={((isHomePage && currentTab === 'predictions') || isBaseDailyPage) ? 'active' : ''}
+                style={{
+                  background: ((isHomePage && currentTab === 'predictions') || isBaseDailyPage) ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+                  border: ((isHomePage && currentTab === 'predictions') || isBaseDailyPage) ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
+                  color: ((isHomePage && currentTab === 'predictions') || isBaseDailyPage) ? '#FFD700' : '#FFD700',
+                  padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: '0.3rem'
+                }}
+              >
+                Predictions
+                <span style={{ fontSize: '0.7em', transition: 'transform 0.2s', transform: predictionsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+              </button>
+              {predictionsDropdownOpen && (
+                <div ref={dropdownContentRef} className="predictions-dropdown-content">
+                  <button
+                    onClick={handleKalshiPredictionsClick}
+                    className={`predictions-dropdown-item ${(isHomePage && currentTab === 'predictions') ? 'active' : ''}`}
+                  >
+                    Kalshi
+                  </button>
+                  <button
+                    onClick={handleBaseDailyClick}
+                    className={`predictions-dropdown-item ${isBaseDailyPage ? 'active' : ''}`}
+                  >
+                    Base Prediction
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => handleNavClick('dashboard')}
               className={(isHomePage && currentTab === 'dashboard') ? 'active' : ''}
@@ -748,28 +997,53 @@ export default function Navbar() {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <div 
+              ref={mobileMenuRef}
               className="mobile-menu"
               style={{
-                position: 'absolute',
-                top: '100%',
+                position: 'fixed',
                 left: 0,
                 right: 0,
                 padding: '1rem 0',
-                zIndex: 1000
+                zIndex: 1000,
+                width: '100%',
+                maxWidth: '100vw'
               }}
             >
               <button
                 className={`mobile-menu-item ${(isHomePage && (currentTab === 'home' || !currentTab)) ? 'active' : ''}`}
                 onClick={() => handleNavClick('home')}
               >Home</button>
-              <button
-                className={`mobile-menu-item ${(isHomePage && currentTab === 'predictions') ? 'active' : ''}`}
-              onClick={() => handleNavClick('predictions')}
-            >Predictions</button>
-              <button
-                className={`mobile-menu-item ${isBaseDailyPage ? 'active' : ''}`}
-                onClick={handleBaseDailyClick}
-              >Base Daily</button>
+              <div style={{ 
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '0.5rem 0'
+              }}>
+                <div style={{ 
+                  padding: '0.75rem 1.5rem', 
+                  color: 'rgba(255, 215, 0, 0.7)', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 800, 
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  Predictions
+                </div>
+                <button
+                  className={`mobile-menu-item ${(isHomePage && currentTab === 'predictions') ? 'active' : ''}`}
+                  onClick={() => {
+                    handleKalshiPredictionsClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ paddingLeft: '2.5rem' }}
+                >Kalshi</button>
+                <button
+                  className={`mobile-menu-item ${isBaseDailyPage ? 'active' : ''}`}
+                  onClick={() => {
+                    handleBaseDailyClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{ paddingLeft: '2.5rem' }}
+                >Base Prediction</button>
+              </div>
               <Link
                 href="/globe"
                 className={`mobile-menu-item ${isGlobePage ? 'active' : ''}`}
