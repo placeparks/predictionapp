@@ -148,39 +148,41 @@ function HeaderEnergy({ address }: { address?: string }) {
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '0.75rem',
-      flexWrap: 'wrap'
+      gap: 'clamp(0.3rem, 0.6vw, 0.6rem)',
+      flexWrap: 'nowrap',
+      flexShrink: 0
     }}>
       {/* BET Tokens Display */}
       <div style={{
-        padding: '0.4rem 0.8rem',
+        padding: 'clamp(0.25rem, 0.4vw, 0.35rem) clamp(0.4rem, 0.8vw, 0.65rem)',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         border: '2px solid rgba(255, 215, 0, 0.4)',
-        borderRadius: '12px',
+        borderRadius: '10px',
         color: '#fff',
-        fontSize: '0.8rem',
+        fontSize: 'clamp(0.55rem, 0.85vw, 0.7rem)',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.4rem',
+        gap: 'clamp(0.2rem, 0.4vw, 0.3rem)',
         boxShadow: '0 4px 20px rgba(255, 215, 0, 0.3)',
         transition: 'all 0.3s ease',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        flexShrink: 0
       }}>
         <span style={{ 
-          fontSize: '0.9rem',
+          fontSize: 'clamp(0.65rem, 0.95vw, 0.8rem)',
           filter: 'drop-shadow(0 2px 8px rgba(255, 215, 0, 0.6))',
         }}>🪙</span>
         <span style={{ 
           fontWeight: 800, 
-          fontSize: '0.85rem',
+          fontSize: 'clamp(0.6rem, 0.85vw, 0.75rem)',
           textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
         }}>
           {betTokens !== null ? betTokens.toLocaleString() : '—'}
         </span>
         <span style={{ 
-          fontSize: '0.7rem', 
+          fontSize: 'clamp(0.5rem, 0.75vw, 0.65rem)', 
           opacity: 0.8,
           fontWeight: 600,
           color: 'rgba(255, 255, 255, 0.8)'
@@ -191,22 +193,23 @@ function HeaderEnergy({ address }: { address?: string }) {
 
       {/* Energy Display */}
       <div style={{
-        padding: '0.4rem 0.8rem',
+        padding: 'clamp(0.25rem, 0.4vw, 0.35rem) clamp(0.4rem, 0.8vw, 0.65rem)',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         border: `2px solid ${isLowEnergy ? 'rgba(255, 107, 53, 0.4)' : 'rgba(120, 208, 66, 0.4)'}`,
-        borderRadius: '12px',
+        borderRadius: '10px',
         color: '#fff',
-        fontSize: '0.8rem',
+        fontSize: 'clamp(0.55rem, 0.85vw, 0.7rem)',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5rem',
+        gap: 'clamp(0.25rem, 0.5vw, 0.4rem)',
         position: 'relative',
         overflow: 'hidden',
         boxShadow: `0 4px 20px ${isLowEnergy ? 'rgba(255, 107, 53, 0.3)' : 'rgba(120, 208, 66, 0.3)'}`,
         transition: 'all 0.3s ease',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        flexShrink: 0
       }}>
         {/* Animated background gradient */}
         <div style={{
@@ -220,9 +223,9 @@ function HeaderEnergy({ address }: { address?: string }) {
           zIndex: 0
         }} />
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(0.15rem, 0.3vw, 0.25rem)', position: 'relative', zIndex: 1 }}>
           <span style={{ 
-            fontSize: '0.7rem', 
+            fontSize: 'clamp(0.5rem, 0.75vw, 0.65rem)', 
             opacity: 0.9,
             fontWeight: 600,
             color: 'rgba(255, 255, 255, 0.9)'
@@ -230,20 +233,20 @@ function HeaderEnergy({ address }: { address?: string }) {
             +{refillAmount}
           </span>
           <span style={{ 
-            fontSize: '1rem', 
+            fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', 
             filter: `drop-shadow(0 2px 8px ${isLowEnergy ? 'rgba(255, 107, 53, 0.6)' : 'rgba(120, 208, 66, 0.6)'})`,
             animation: isLowEnergy ? 'pulse-glow 2s ease-in-out infinite' : 'none',
           }}>⚡</span>
           <span style={{ 
             fontWeight: 800, 
-            fontSize: '0.85rem',
+            fontSize: 'clamp(0.6rem, 0.85vw, 0.75rem)',
             textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
           }}>
             {energy ?? 0}/{maxEnergy}
           </span>
           {nextRefillIn > 0 && energy !== null && energy < maxEnergy && formatTime(nextRefillIn) && (
             <span style={{ 
-              fontSize: '0.65rem', 
+              fontSize: 'clamp(0.45rem, 0.7vw, 0.6rem)', 
               opacity: 0.8,
               fontWeight: 600,
               color: 'rgba(255, 255, 255, 0.8)'
@@ -380,10 +383,24 @@ export default function Navbar() {
           background-clip: text !important;
           animation: shimmer 3s linear infinite !important;
           font-weight: 900 !important;
-          letter-spacing: 3px !important;
+          letter-spacing: clamp(1px, 0.3vw, 3px) !important;
           text-transform: uppercase !important;
           filter: drop-shadow(0 4px 20px rgba(255, 107, 53, 0.5)) !important;
-          font-size: 1.4rem !important;
+          font-size: clamp(1rem, 2vw, 1.4rem) !important;
+        }
+
+        /* Hide scrollbars but allow scrolling */
+        .main-header > div::-webkit-scrollbar,
+        .desktop-nav::-webkit-scrollbar {
+          display: none !important;
+        }
+        
+        .main-header > div,
+        .desktop-nav {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+          scroll-padding-left: clamp(0.5rem, 1vw, 1rem) !important;
+          scroll-padding-right: clamp(0.5rem, 1vw, 1rem) !important;
         }
 
         .desktop-nav button,
@@ -393,15 +410,16 @@ export default function Navbar() {
           border: 2px solid rgba(255, 255, 255, 0.15) !important;
           color: #FFD700 !important;
           border-radius: 14px !important;
-          padding: 0.5rem 0.9rem !important;
+          padding: clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 0.9rem) !important;
           font-weight: 700 !important;
           transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          font-size: 0.75rem !important;
+          font-size: clamp(0.65rem, 1.1vw, 0.75rem) !important;
           position: relative !important;
           overflow: hidden !important;
           white-space: nowrap !important;
+          flex-shrink: 0 !important;
         }
 
         .desktop-nav button::before,
@@ -454,15 +472,18 @@ export default function Navbar() {
           animation: gradient-shift 3s ease infinite !important;
           border: 2px solid rgba(255, 255, 255, 0.3) !important;
           color: #FFFFFF !important;
-          border-radius: 14px !important;
-          padding: 0.65rem 1.3rem !important;
+          border-radius: 10px !important;
+          padding: clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.65rem, 1.2vw, 0.95rem) !important;
           font-weight: 800 !important;
           transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
           text-transform: uppercase !important;
           letter-spacing: 0.5px !important;
+          font-size: clamp(0.6rem, 0.85vw, 0.75rem) !important;
           box-shadow: 
             0 6px 20px rgba(120, 208, 66, 0.4),
             inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+          white-space: nowrap !important;
+          flex-shrink: 0 !important;
         }
 
         .wallet-connect-wrapper :global(button:hover),
@@ -477,6 +498,17 @@ export default function Navbar() {
         .wallet-connect-wrapper :global([role="button"]:active) {
           transform: translateY(-1px) scale(1.02) !important;
           animation: bounce-playful 0.4s ease-out !important;
+        }
+
+        /* Hide images/avatars in wallet connect component */
+        .wallet-connect-wrapper :global(img),
+        .wallet-connect-wrapper :global([class*="avatar"]),
+        .wallet-connect-wrapper :global([class*="Avatar"]),
+        .wallet-connect-wrapper :global(svg[class*="avatar"]),
+        .wallet-section :global(img),
+        .wallet-section :global([class*="avatar"]),
+        .wallet-section :global([class*="Avatar"]) {
+          display: none !important;
         }
 
         .mobile-menu {
@@ -563,7 +595,7 @@ export default function Navbar() {
       <header
         className="main-header"
         style={{
-          padding: "1.25rem 2rem",
+          padding: "clamp(0.75rem, 1.5vw, 1.25rem) clamp(1rem, 2.5vw, 2rem)",
           position: "sticky",
         top: 0,
         zIndex: 100,
@@ -575,9 +607,13 @@ export default function Navbar() {
           alignItems: 'center',
           maxWidth: '1400px',
           margin: '0 auto',
-          gap: '1rem',
+          gap: 'clamp(0.5rem, 1vw, 1rem)',
           position: 'relative',
-          flexWrap: 'wrap'
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
         }}>
           <Link 
             href="/" 
@@ -606,12 +642,18 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <nav className="desktop-nav" style={{ 
             display: 'flex', 
-            gap: '0.4rem', 
-            flexWrap: 'wrap', 
+            gap: 'clamp(0.25rem, 0.5vw, 0.4rem)', 
+            flexWrap: 'nowrap', 
             justifyContent: 'center', 
             flex: '1 1 auto',
             minWidth: 0,
-            maxWidth: '100%'
+            maxWidth: '100%',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            paddingLeft: 'clamp(0.25rem, 0.5vw, 0.5rem)',
+            paddingRight: 'clamp(0.25rem, 0.5vw, 0.5rem)'
           }}>
             <button
               onClick={() => handleNavClick('home')}
@@ -620,8 +662,8 @@ export default function Navbar() {
                 background: (isHomePage && (currentTab === 'home' || !currentTab)) ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
                 border: (isHomePage && (currentTab === 'home' || !currentTab)) ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
                 color: (isHomePage && (currentTab === 'home' || !currentTab)) ? '#FFD700' : '#FFD700',
-                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >Home</button>
             <button
@@ -631,8 +673,8 @@ export default function Navbar() {
                 background: (isHomePage && currentTab === 'predictions') ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
                 border: (isHomePage && currentTab === 'predictions') ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
                 color: (isHomePage && currentTab === 'predictions') ? '#FFD700' : '#FFD700',
-                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >Predictions</button>
             <button
@@ -642,8 +684,8 @@ export default function Navbar() {
                 background: isBaseDailyPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
                 border: isBaseDailyPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
                 color: isBaseDailyPage ? '#FFD700' : '#FFD700',
-                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >Base Daily</button>
             <button
@@ -653,33 +695,33 @@ export default function Navbar() {
                 background: (isHomePage && currentTab === 'dashboard') ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
                 border: (isHomePage && currentTab === 'dashboard') ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
                 color: (isHomePage && currentTab === 'dashboard') ? '#FFD700' : '#FFD700',
-                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >Portfolio</button>
             <Link href="/globe" onClick={() => setMobileMenuOpen(false)} style={{
-              textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 8,
+              textDecoration: 'none', padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: 8,
               background: isGlobePage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
               border: isGlobePage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
               color: isGlobePage ? '#FFD700' : '#FFD700',
-              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.875rem', fontWeight: 600,
-              transition: 'all 0.2s', whiteSpace: 'nowrap'
+              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+              transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
             }}>Forecast Engine</Link>
        { /*    <Link href="/points" onClick={() => setMobileMenuOpen(false)} style={{
-              textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 8,
+              textDecoration: 'none', padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: 8,
               background: _isPointsPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
               border: _isPointsPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
               color: _isPointsPage ? '#FFD700' : '#FFD700',
-              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.875rem', fontWeight: 600,
-              transition: 'all 0.2s', whiteSpace: 'nowrap'
+              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+              transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
             }}>BET Tokens</Link> */}
             <Link href="/referrals" onClick={() => setMobileMenuOpen(false)} style={{
-              textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 8,
+              textDecoration: 'none', padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: 8,
               background: isReferralsPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
               border: isReferralsPage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
               color: isReferralsPage ? '#FFD700' : '#FFD700',
-              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.875rem', fontWeight: 600,
-              transition: 'all 0.2s', whiteSpace: 'nowrap'
+              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+              transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
             }}>Referrals</Link>
             <button
               onClick={handleFAQClick}
@@ -688,8 +730,8 @@ export default function Navbar() {
                 background: showFAQ ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
                 border: showFAQ ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
                 color: showFAQ ? '#FFD700' : '#FFD700',
-                padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap'
+                padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: '8px', cursor: 'pointer', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.5px', transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
               }}
             >FAQ</button>
           </nav>
@@ -805,10 +847,10 @@ export default function Navbar() {
             display: 'flex', 
             justifyContent: 'flex-end', 
             alignItems: 'center', 
-            gap: '0.75rem', 
+            gap: 'clamp(0.3rem, 0.6vw, 0.6rem)', 
             flexShrink: 0,
             minWidth: 'fit-content',
-            flexWrap: 'wrap'
+            flexWrap: 'nowrap'
           }}>
             {address && (
               <div style={{ flexShrink: 0 }}>

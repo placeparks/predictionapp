@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { openWarpcastCompose } from "@/lib/farcaster/share";
 
-type ShareKind = "nft" | "leaderboard" | "globe" | "portfolio";
+type ShareKind = "nft" | "leaderboard" | "globe" | "portfolio" | "referral";
 
 type Props = {
   kind: ShareKind;
@@ -25,8 +25,8 @@ export default function ShareToFarcaster(props: Props) {
 
     switch (props.kind) {
       case "nft": {
-        const image = props.imageUrl ?? (baseUrl ? `${baseUrl}/api/frames/nft.png?token=${props.tokenId ?? ""}` : `/api/frames/nft.png?token=${props.tokenId ?? ""}`);
-        const link = props.pageUrl ?? (baseUrl ? `${baseUrl}/nft/${props.tokenId ?? ""}` : `/nft/${props.tokenId ?? ""}`);
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/nft.png?token=${props.tokenId ?? ""}`;
+        const link = props.pageUrl ?? `${baseUrl}/nft/${props.tokenId ?? ""}`;
         return {
           text: "Minted my Neural Shard on Base. ⚡️",
           image,
@@ -34,8 +34,8 @@ export default function ShareToFarcaster(props: Props) {
         };
       }
       case "leaderboard": {
-        const image = props.imageUrl ?? (baseUrl ? `${baseUrl}/api/frames/leaderboard.png?rank=${props.rank ?? ""}` : `/api/frames/leaderboard.png?rank=${props.rank ?? ""}`);
-        const link = props.pageUrl ?? (baseUrl ? `${baseUrl}/leaderboard` : `/leaderboard`);
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/leaderboard.png?rank=${props.rank ?? ""}`;
+        const link = props.pageUrl ?? `${baseUrl}/leaderboard`;
         return {
           text: "Climbing the Base Daily leaderboard. 🏆",
           image,
@@ -43,17 +43,26 @@ export default function ShareToFarcaster(props: Props) {
         };
       }
       case "globe": {
-        const image = props.imageUrl ?? (baseUrl ? `${baseUrl}/api/frames/globe.png?focus=${props.wallet ?? ""}` : `/api/frames/globe.png?focus=${props.wallet ?? ""}`);
-        const link = props.pageUrl ?? (baseUrl ? `${baseUrl}/globe?focus=${props.wallet ?? ""}` : `/globe?focus=${props.wallet ?? ""}`);
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/globe.png?focus=${props.wallet ?? ""}`;
+        const link = props.pageUrl ?? `${baseUrl}/globe?focus=${props.wallet ?? ""}`;
         return {
           text: "I’m on the Neural Globe—live network of minters and predictors. 🌐",
           image,
           link,
         };
       }
+      case "referral": {
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/referral.png`;
+        const link = props.pageUrl ?? `${baseUrl}/referrals`;
+        return {
+          text: "Join Prophecy with my invite—claim BET tokens on day one. 🎁",
+          image,
+          link,
+        };
+      }
       default: {
-        const image = props.imageUrl ?? (baseUrl ? `${baseUrl}/api/frames/portfolio.png?wallet=${props.wallet ?? ""}` : `/api/frames/portfolio.png?wallet=${props.wallet ?? ""}`);
-        const link = props.pageUrl ?? (baseUrl ? `${baseUrl}/portfolio/${props.wallet ?? ""}` : `/portfolio/${props.wallet ?? ""}`);
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/portfolio.png?wallet=${props.wallet ?? ""}`;
+        const link = props.pageUrl ?? `${baseUrl}/portfolio/${props.wallet ?? ""}`;
         return {
           text: "Here’s my Base Daily portfolio snapshot. 🔮",
           image,

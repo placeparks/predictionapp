@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { Copy, Check, Users, Trophy, Gift, Share2, Zap } from "lucide-react";
+import ShareToFarcaster from "../components/ShareToFarcaster";
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://prophecy.house").replace(/\/$/, "");
 
 interface ReferralData {
   referrer: {
@@ -136,6 +139,14 @@ export default function ReferralsPage() {
       setGeneratingCode(false);
     }
   };
+
+  const referralCode = data?.primaryCode ?? data?.referralCodes?.[0]?.code ?? "";
+  const referralShareText = referralCode
+    ? `Join Prophecy with my code ${referralCode.toUpperCase()} and claim 50 BET tokens.`
+    : "Join Prophecy with my invite link and get BET tokens to start predicting.";
+  const referralShareImage = data
+    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(referralCode)}&total=${data?.referrer?.total ?? 0}&active=${data?.referrer?.active ?? 0}`
+    : undefined;
 
   if (!address) {
     return (
@@ -313,6 +324,16 @@ export default function ReferralsPage() {
             Share
           </button>
         </div>
+        {data?.referralLink && (
+          <div style={{ marginTop: '1rem' }}>
+            <ShareToFarcaster
+              kind="referral"
+              text={referralShareText}
+              pageUrl={data.referralLink}
+              imageUrl={referralShareImage}
+            />
+          </div>
+        )}
         <div style={{
           marginTop: '1.5rem',
           paddingTop: '1.5rem',
