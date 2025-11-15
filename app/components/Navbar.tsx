@@ -755,34 +755,33 @@ export default function Navbar() {
                 onClick={handleFAQClick}
               >FAQ</button>
               
-              {/* Wallet Section in Mobile Menu */}
-              <div 
-                className="mobile-menu-wallet" 
-                style={{ 
-                  padding: '0.75rem 1rem',
-                  borderTop: '2px solid rgba(255, 255, 255, 0.1)',
-                  marginTop: '0.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem'
-                }}
-              >
-                {address && (
-                  <>
-                    <div style={{ 
-                      padding: '0.75rem', 
-                      background: 'rgba(255, 255, 255, 0.1)', 
-                      border: '1px solid rgba(255, 215, 0, 0.3)', 
-                      borderRadius: '8px', 
-                      fontSize: '0.875rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      minHeight: '44px'
-                    }}>
-                      <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>🪙 BET Tokens:</span>
-                      <strong style={{ color: '#FFD700', fontSize: '1rem' }}>{betTokens !== null ? betTokens.toLocaleString() : '—'}</strong>
-                    </div>
+              {/* BET Tokens and Energy Section in Mobile Menu */}
+              {address && (
+                <div 
+                  className="mobile-menu-wallet" 
+                  style={{ 
+                    padding: '0.75rem 1rem',
+                    borderTop: '2px solid rgba(255, 255, 255, 0.1)',
+                    marginTop: '0.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div style={{ 
+                    padding: '0.75rem', 
+                    background: 'rgba(255, 255, 255, 0.1)', 
+                    border: '1px solid rgba(255, 215, 0, 0.3)', 
+                    borderRadius: '8px', 
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    minHeight: '44px'
+                  }}>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>🪙 BET Tokens:</span>
+                    <strong style={{ color: '#FFD700', fontSize: '1rem' }}>{betTokens !== null ? betTokens.toLocaleString() : '—'}</strong>
+                  </div>
                   <div style={{ 
                     padding: '0.75rem', 
                     background: 'rgba(255, 255, 255, 0.1)', 
@@ -794,15 +793,11 @@ export default function Navbar() {
                     justifyContent: 'space-between',
                     minHeight: '44px'
                   }}>
-                      <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>⚡ Energy:</span>
-                      <strong style={{ color: '#fff', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>⚡ Energy:</span>
+                    <strong style={{ color: '#fff', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
                   </div>
-                  </>
-                )}
-                <div className="wallet-connect-wrapper" style={{ width: '100%' }}>
-                  <DynamicConnectWallet />
                 </div>
-              </div>
+              )}
             </div>
           )}
 
