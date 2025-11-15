@@ -15,7 +15,6 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get("code") ?? "";
   const total = Number(searchParams.get("total") ?? "0") || 0;
   const active = Number(searchParams.get("active") ?? "0") || 0;
-  const link = searchParams.get("link") ?? "";
 
   const sizeKey = (searchParams.get("size") ?? "small") as keyof typeof PRESETS;
   const { w, h } = PRESETS[sizeKey] ?? PRESETS.small;
@@ -29,17 +28,6 @@ export async function GET(req: NextRequest) {
         ? `${code.slice(0, 6).toUpperCase()}...${code.slice(-4).toUpperCase()}`
         : code.toUpperCase())
     : "GET-STARTED";
-
-  // Construct referral link if not provided
-  const referralLink = link || (code 
-    ? (() => {
-        const envBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.SITE_URL?.trim();
-        const requestUrl = new URL(req.url);
-        const detectedBaseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-        const baseUrl = envBaseUrl || detectedBaseUrl || "https://prophecy.house";
-        return `${baseUrl}?ref=${code}`;
-      })()
-    : "");
 
   const image = new ImageResponse(
     (
@@ -69,22 +57,8 @@ export async function GET(req: NextRequest) {
             position: "relative",
           }}
         >
-          {/* Glowing orb background effect */}
-          <div
-            style={{
-              position: "absolute",
-              top: "-30%",
-              right: "-10%",
-              width: "50%",
-              height: "80%",
-              background: "radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%)",
-              borderRadius: "50%",
-              filter: "blur(60px)",
-            }}
-          />
-
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
             <div
               style={{
                 padding: "10px 20px",
@@ -95,6 +69,7 @@ export async function GET(req: NextRequest) {
                 fontWeight: 800,
                 color: "#FFD700",
                 letterSpacing: "0.08em",
+                display: "flex",
               }}
             >
               🎁 PROPHECY INVITE
@@ -107,6 +82,7 @@ export async function GET(req: NextRequest) {
                 fontSize: Math.round(w * 0.022),
                 fontWeight: 800,
                 color: "#0f172a",
+                display: "flex",
               }}
             >
               +50 BET TOKENS
@@ -114,7 +90,7 @@ export async function GET(req: NextRequest) {
           </div>
 
           {/* Main Content */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div
               style={{
                 fontSize: Math.round(w * 0.026),
@@ -139,8 +115,6 @@ export async function GET(req: NextRequest) {
                 boxShadow: "0 10px 40px rgba(255, 215, 0, 0.2), 0 0 20px rgba(255, 215, 0, 0.1) inset",
                 marginBottom: Math.round(w * 0.025),
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
               }}
             >
               <div
@@ -152,13 +126,16 @@ export async function GET(req: NextRequest) {
                   backgroundClip: "text",
                   color: "transparent",
                   textAlign: "center",
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
                 }}
               >
                 {codeDisplay}
               </div>
             </div>
 
-            {/* Stats Grid (using flex instead of grid) */}
+            {/* Stats using flex */}
             <div
               style={{
                 display: "flex",
@@ -185,6 +162,7 @@ export async function GET(req: NextRequest) {
                     letterSpacing: "0.08em",
                     color: "rgba(255, 255, 255, 0.6)",
                     fontWeight: 700,
+                    display: "flex",
                   }}
                 >
                   TOTAL INVITES
@@ -194,6 +172,7 @@ export async function GET(req: NextRequest) {
                     fontSize: Math.round(w * 0.05),
                     fontWeight: 900,
                     color: "#fff",
+                    display: "flex",
                   }}
                 >
                   {total}
@@ -218,6 +197,7 @@ export async function GET(req: NextRequest) {
                     letterSpacing: "0.08em",
                     color: "rgba(255, 255, 255, 0.6)",
                     fontWeight: 700,
+                    display: "flex",
                   }}
                 >
                   ACTIVE
@@ -227,6 +207,7 @@ export async function GET(req: NextRequest) {
                     fontSize: Math.round(w * 0.05),
                     fontWeight: 900,
                     color: "#fff",
+                    display: "flex",
                   }}
                 >
                   {active}
@@ -237,43 +218,16 @@ export async function GET(req: NextRequest) {
             {/* CTA Text */}
             <div
               style={{
+                fontSize: Math.round(w * 0.024),
+                color: "rgba(255, 255, 255, 0.8)",
+                textAlign: "center",
+                fontWeight: 600,
+                lineHeight: 1.4,
                 display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 8,
+                justifyContent: "center",
               }}
             >
-              <div
-                style={{
-                  fontSize: Math.round(w * 0.024),
-                  color: "rgba(255, 255, 255, 0.8)",
-                  textAlign: "center",
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                  display: "flex",
-                }}
-              >
-                Join Prophecy • Predict the Future • Earn Rewards 🔮
-              </div>
-              {referralLink && (
-                <div
-                  style={{
-                    fontSize: Math.round(w * 0.016),
-                    color: "rgba(255, 215, 0, 0.9)",
-                    fontFamily: "monospace",
-                    textAlign: "center",
-                    fontWeight: 500,
-                    letterSpacing: "0.02em",
-                    display: "flex",
-                    padding: "4px 12px",
-                    borderRadius: 8,
-                    background: "rgba(255, 215, 0, 0.1)",
-                    border: "1px solid rgba(255, 215, 0, 0.3)",
-                  }}
-                >
-                  {referralLink}
-                </div>
-              )}
+              Join Prophecy • Predict the Future • Earn Rewards 🔮
             </div>
           </div>
 
@@ -285,8 +239,6 @@ export async function GET(req: NextRequest) {
               alignItems: "center",
               paddingTop: 20,
               borderTop: "2px solid rgba(255, 255, 255, 0.1)",
-              position: "relative",
-              zIndex: 1,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -297,6 +249,7 @@ export async function GET(req: NextRequest) {
                   borderRadius: "50%",
                   background: "#10b981",
                   boxShadow: "0 0 0 4px rgba(16, 185, 129, 0.3)",
+                  display: "flex",
                 }}
               />
               <div
@@ -304,6 +257,7 @@ export async function GET(req: NextRequest) {
                   fontSize: Math.round(w * 0.02),
                   color: "rgba(255, 255, 255, 0.7)",
                   fontWeight: 600,
+                  display: "flex",
                 }}
               >
                 Live on Base
@@ -314,6 +268,7 @@ export async function GET(req: NextRequest) {
                 fontSize: Math.round(w * 0.024),
                 color: "#FFD700",
                 fontWeight: 800,
+                display: "flex",
               }}
             >
               prophecy.house
