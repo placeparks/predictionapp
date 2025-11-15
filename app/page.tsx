@@ -965,10 +965,8 @@ function HomeContent() {
                           const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
                           const animalLabel = shareAnimalValue ?? "Neural Shard";
                           const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
-                          // Include the actual NFT image via art parameter, use small JPEG for optimal sharing
-                          const nftImageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
-                          // Use large size for richer preview; include cache-buster `v` to avoid stale images
-                          const imageUrl = `${SITE_URL}/api/frames/nft.png?token=${mintedTokenId}&tier=${encodeURIComponent(tierLabel)}&animal=${encodeURIComponent(animalLabel)}&size=large&fmt=jpeg&art=${encodeURIComponent(nftImageUrl)}&v=3`;
+                          // Use the raw NFT image without any frame
+                          const imageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
                           return (
                             <ShareToFarcaster
                               kind="nft"
