@@ -77,10 +77,15 @@ export default function ShareToFarcaster(props: Props) {
   // Only include a link embed by default for routes that exist
   // (globe, referrals). Others default to image-only unless explicitly enabled.
   const linkEmbed = props.linkEmbed ?? (props.kind === "globe" || props.kind === "referral");
-  const primaryImage =
-    props.kind === "nft" && typeof defaults.image === "string"
-      ? defaults.image.replace("nft.png?token=", "nft.png?fmt=png&token=")
-      : defaults.image;
+  let primaryImage = defaults.image as string | undefined;
+  if (
+    props.kind === "nft" &&
+    typeof primaryImage === "string" &&
+    primaryImage.includes("nft.png") &&
+    !primaryImage.includes("fmt=")
+  ) {
+    primaryImage = primaryImage.replace("nft.png?token=", "nft.png?fmt=png&token=");
+  }
   const embeds = [
     primaryImage,
     ...(linkEmbed && defaults.link ? [defaults.link] : []),
