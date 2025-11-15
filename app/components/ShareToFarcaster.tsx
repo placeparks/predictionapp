@@ -74,9 +74,13 @@ export default function ShareToFarcaster(props: Props) {
   }, [props]);
 
   const text = props.text ?? defaults.text;
-  const linkEmbed = props.linkEmbed ?? true;
+  const linkEmbed = props.linkEmbed ?? (props.kind !== "nft");
+  const primaryImage =
+    props.kind === "nft" && typeof defaults.image === "string"
+      ? defaults.image.replace("nft.png?token=", "nft.png?fmt=png&token=")
+      : defaults.image;
   const embeds = [
-    defaults.image,
+    primaryImage,
     ...(linkEmbed && defaults.link ? [defaults.link] : []),
   ].filter(Boolean) as string[];
   const channelKey = props.channelKey ?? "base";
