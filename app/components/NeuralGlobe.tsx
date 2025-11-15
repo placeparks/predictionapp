@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { useAccount } from "wagmi";
+import ShareToFarcaster from "./ShareToFarcaster";
 
 type Minter = {
   wallet: string;
@@ -678,6 +680,7 @@ function MintersPoints({
 }
 
 export default function NeuralGlobe() {
+  const { address } = useAccount();
   const [minters, setMinters] = useState<Minter[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -711,20 +714,29 @@ export default function NeuralGlobe() {
   }, []);
 
   const showEmpty = !loading && minters.length === 0;
+  const shareWallet = address ?? undefined;
+  const shareText =
+    minters.length > 0
+      ? `Watching ${minters.length.toLocaleString()} minters on the Neural Globe. 🌐`
+      : undefined;
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: isMobile ? "60vh" : "70vh",
-        minHeight: isMobile ? "400px" : "500px",
-        borderRadius: 16,
-        overflow: "hidden",
-        border: "1px solid rgba(99,102,241,0.25)",
-        position: "relative",
-        background: "radial-gradient(ellipse at top, rgba(99,102,241,0.12), rgba(15,23,42,0.85))",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap" }}>
+        <ShareToFarcaster kind="globe" wallet={shareWallet} text={shareText} />
+      </div>
+      <div
+        style={{
+          width: "100%",
+          height: isMobile ? "60vh" : "70vh",
+          minHeight: isMobile ? "400px" : "500px",
+          borderRadius: 16,
+          overflow: "hidden",
+          border: "1px solid rgba(99,102,241,0.25)",
+          position: "relative",
+          background: "radial-gradient(ellipse at top, rgba(99,102,241,0.12), rgba(15,23,42,0.85))",
+        }}
+      >
       {loading && (
         <div
           style={{
@@ -840,6 +852,7 @@ export default function NeuralGlobe() {
         </div>,
         document.body
       )}
+      </div>
     </div>
   );
 }

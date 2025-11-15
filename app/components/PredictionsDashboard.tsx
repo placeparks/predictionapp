@@ -1,6 +1,9 @@
 "use client";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import ShareToFarcaster from "./ShareToFarcaster";
+
+const SHARE_BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://prophecy.house").replace(/\/$/, "");
 
 interface Prediction {
   id: string;
@@ -282,6 +285,15 @@ export default function PredictionsDashboard({ address }: PredictionsDashboardPr
   const pendingPredictions = predictions.filter((prediction) => !prediction.settled);
   const wonPredictions = settledPredictions.filter((prediction) => prediction.won === true);
   const lostPredictions = settledPredictions.filter((prediction) => prediction.won === false);
+  const shareParams = new URLSearchParams();
+  if (address) shareParams.set("wallet", address);
+  if (typeof betTokens === "number") shareParams.set("tokens", String(betTokens));
+  shareParams.set("total", String(predictions.length));
+  shareParams.set("won", String(wonPredictions.length));
+  shareParams.set("lost", String(lostPredictions.length));
+  shareParams.set("pending", String(pendingPredictions.length));
+  const shareImageUrl = `${SHARE_BASE_URL}/api/frames/portfolio.png?${shareParams.toString()}`;
+  const shareText = `Base Daily portfolio: ${wonPredictions.length}W-${lostPredictions.length}L with ${pendingPredictions.length} live markets.`;
 
   return (
     <>
@@ -312,45 +324,58 @@ export default function PredictionsDashboard({ address }: PredictionsDashboardPr
         <div
           style={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: "0.75rem",
-            background: "rgba(15, 20, 35, 0.7)",
-            border: "1px solid rgba(99, 102, 241, 0.25)",
-            borderRadius: 999,
-            padding: "0.35rem",
-            backdropFilter: "blur(12px)",
-            width: "fit-content",
           }}
         >
-          {[
-            { key: "overview" as const, label: "Predictions" },
-            { key: "copilot" as const, label: "Portfolio Copilot" },
-          ].map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                style={{
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "0.6rem 1.4rem",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  background: isActive
-                    ? "linear-gradient(135deg, #6366f1, #8b5cf6)"
-                    : "transparent",
-                  color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
-                  boxShadow: isActive ? "0 6px 18px rgba(99, 102, 241, 0.35)" : "none",
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              background: "rgba(15, 20, 35, 0.7)",
+              border: "1px solid rgba(99, 102, 241, 0.25)",
+              borderRadius: 999,
+              padding: "0.35rem",
+              backdropFilter: "blur(12px)",
+              width: "fit-content",
+            }}
+          >
+            {[
+              { key: "overview" as const, label: "Predictions" },
+              { key: "copilot" as const, label: "Portfolio Copilot" },
+            ].map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  style={{
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "0.6rem 1.4rem",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    background: isActive
+                      ? "linear-gradient(135deg, #6366f1, #8b5cf6)"
+                      : "transparent",
+                    color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
+                    boxShadow: isActive ? "0 6px 18px rgba(99, 102, 241, 0.35)" : "none",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <ShareToFarcaster kind="portfolio" wallet={address} text={shareText} imageUrl={shareImageUrl} />
+          </div>
         </div>
 
         {activeTab === "overview" ? (

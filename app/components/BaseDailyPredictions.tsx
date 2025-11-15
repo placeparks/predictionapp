@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { Clock, RefreshCw, ShieldCheck, Zap } from "lucide-react";
 import { computeBaseDailySession } from "@/lib/baseDaily";
+import ShareToFarcaster from "./ShareToFarcaster";
 
 type SessionPhase = "break" | "open" | "locked" | "settled";
 
@@ -126,6 +127,11 @@ export default function BaseDailyPredictions() {
 
   const sessionPhase: SessionPhase = data?.session?.phase ?? "break";
   const sessionTargetIso = data ? phaseTarget(sessionPhase, data.session) : null;
+  const shareText = useMemo(() => {
+    if (!data?.session) return undefined;
+    const label = phaseLabels[sessionPhase] ?? sessionPhase;
+    return `Base Daily ${data.session.id} — ${label}. Join me. 🏆`;
+  }, [data?.session, sessionPhase]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -402,36 +408,39 @@ export default function BaseDailyPredictions() {
               Ten daily Base chain benchmarks. Pick a side, check back after review, and winners claim 1 BET token.
             </p>
           </div>
-          <button
-            onClick={() => void fetchData()}
-            className="vibrant-button"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "0.75rem 1.5rem",
-              borderRadius: "16px",
-              border: "2px solid rgba(255, 255, 255, 0.3)",
-              background: "linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(139, 92, 246, 0.2))",
-              backdropFilter: "blur(10px)",
-              color: "#fff",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              transition: "all 0.3s",
-              boxShadow: "0 4px 16px rgba(255, 107, 53, 0.2)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
-              e.currentTarget.style.boxShadow = "0 8px 24px rgba(255, 107, 53, 0.4)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0) scale(1)";
-              e.currentTarget.style.boxShadow = "0 4px 16px rgba(255, 107, 53, 0.2)";
-            }}
-          >
-            <RefreshCw size={16} /> Refresh
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <button
+              onClick={() => void fetchData()}
+              className="vibrant-button"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "0.75rem 1.5rem",
+                borderRadius: "16px",
+                border: "2px solid rgba(255, 255, 255, 0.3)",
+                background: "linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(139, 92, 246, 0.2))",
+                backdropFilter: "blur(10px)",
+                color: "#fff",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                transition: "all 0.3s",
+                boxShadow: "0 4px 16px rgba(255, 107, 53, 0.2)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(255, 107, 53, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0) scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 16px rgba(255, 107, 53, 0.2)";
+              }}
+            >
+              <RefreshCw size={16} /> Refresh
+            </button>
+            <ShareToFarcaster kind="leaderboard" text={shareText} />
+          </div>
         </div>
 
         <div

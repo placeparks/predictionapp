@@ -9,6 +9,7 @@ import Image from 'next/image';
 import KalshiPredictions from './components/KalshiPredictions';
 import FAQ from './components/FAQ';
 import PredictionsDashboard from './components/PredictionsDashboard';
+import ShareToFarcaster from './components/ShareToFarcaster';
 import { computeTier } from '@/lib/tier';
 
 // Prevent static generation - this page uses client-side hooks
@@ -58,6 +59,8 @@ const ERC721_MINT_ABI = [
     type: 'function'
   }
 ];
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://prophecy.house").replace(/\/$/, "");
 
 
 interface StatsData {
@@ -726,7 +729,14 @@ function HomeContent() {
           <FAQ />
         ) : (
           <>
-            {/* Home content - always show when not FAQ */}
+            {/* Predictions content - show FIRST when predictions tab is active */}
+            {activeTab === 'predictions' && (
+              <div style={{ marginBottom: '3rem' }}>
+                <KalshiPredictions address={address || undefined} />
+              </div>
+            )}
+            
+            {/* Home content - show when home tab is active, or below predictions when predictions tab is active */}
             {activeTab === 'home' || activeTab === 'predictions' ? (
               <>
                 {data && (
@@ -874,6 +884,24 @@ function HomeContent() {
                         >
                           {loading ? '⟳' : '🔄'} Refresh
                         </button>
+                        {mintedTokenId !== null && (() => {
+                          const shareTierValue = mintedTier ?? data?.tier ?? null;
+                          const shareAnimalValue = mintedAnimal ?? data?.animal ?? null;
+                          const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
+                          const animalLabel = shareAnimalValue ?? "Neural Shard";
+                          const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
+                          const imageUrl = `${SITE_URL}/api/frames/nft.png?token=${mintedTokenId}&tier=${encodeURIComponent(tierLabel)}&animal=${encodeURIComponent(animalLabel)}`;
+                          return (
+                            <ShareToFarcaster
+                              kind="nft"
+                              wallet={address || undefined}
+                              tokenId={mintedTokenId}
+                              text={shareText}
+                              imageUrl={imageUrl}
+                              pageUrl={`${SITE_URL}/nft/${mintedTokenId}`}
+                            />
+                          );
+                        })()}
                       </div>
 
                       {mintStatus && (
@@ -1142,13 +1170,6 @@ function HomeContent() {
             )}
               </>
             ) : null}
-            
-            {/* Predictions content - show below home when predictions tab is active */}
-            {activeTab === 'predictions' && (
-              <div style={{ marginTop: '3rem' }}>
-                <KalshiPredictions address={address || undefined} />
-              </div>
-            )}
             
             {/* Dashboard content - only show when dashboard tab is active */}
             {activeTab === "dashboard" && (
