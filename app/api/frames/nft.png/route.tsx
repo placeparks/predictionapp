@@ -28,6 +28,14 @@ export async function GET(req: NextRequest) {
   const fmt = (searchParams.get("fmt") ?? "png").toLowerCase();
   const contentType = fmt === "png" ? "image/png" : "image/jpeg";
 
+  // Convert hex to rgba
+  const hexToRgba = (hex: string, alpha: number = 1) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   // Helpers
   const chip = (label: string) => (
     <div
@@ -35,7 +43,7 @@ export async function GET(req: NextRequest) {
         padding: `${Math.round(h * 0.012)} ${Math.round(h * 0.02)}`,
         borderRadius: 999,
         background: "rgba(15,23,42,0.08)",
-        border: `2px solid ${accent}cc`,
+        border: `3px solid ${hexToRgba(accent, 1)}`,
         fontSize: Math.round(h * 0.04),
         fontWeight: 700,
         color: "#0f172a",
@@ -50,8 +58,8 @@ export async function GET(req: NextRequest) {
       style={{
         padding: `${Math.round(h * 0.01)} ${Math.round(h * 0.018)}`,
         borderRadius: 999,
-        background: `${accent}1a`,
-        border: `2px solid ${accent}ff`,
+        background: hexToRgba(accent, 0.1),
+        border: `3px solid ${hexToRgba(accent, 1)}`,
         color: accent,
         fontSize: Math.round(h * 0.035),
         fontWeight: 800,
@@ -87,9 +95,9 @@ export async function GET(req: NextRequest) {
             padding: 28,
             borderRadius: 28,
             background: "linear-gradient(180deg,#ffffff,#f8fafc)",
-            border: `3px solid ${accent}ff`,
+            border: `4px solid ${hexToRgba(accent, 1)}`,
             boxShadow:
-              `0 24px 60px ${accent}40, 0 8px 30px rgba(2,6,23,0.15), inset 0 0 0 1px ${accent}33`,
+              `0 24px 60px ${hexToRgba(accent, 0.25)}, 0 8px 30px rgba(2,6,23,0.15), 0 0 0 2px ${hexToRgba(accent, 0.2)}`,
           }}
         >
           {/* Artwork panel (medallion with accent ring) */}
@@ -99,7 +107,7 @@ export async function GET(req: NextRequest) {
               height: Math.round(h - 64 - 56),
               borderRadius: 24,
               background: "linear-gradient(180deg,#eef2ff,#e9d5ff)",
-              border: `3px solid ${accent}ff`,
+              border: `4px solid ${hexToRgba(accent, 1)}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -128,8 +136,8 @@ export async function GET(req: NextRequest) {
                   borderRadius: 9999,
                   overflow: "hidden",
                   background: "#0f172a",
-                  border: `3px solid ${accent}ff`,
-                  boxShadow: `0 0 20px ${accent}80, inset 0 0 20px ${accent}40`,
+                  border: `4px solid ${hexToRgba(accent, 1)}`,
+                  boxShadow: `0 0 20px ${hexToRgba(accent, 0.5)}, inset 0 0 20px ${hexToRgba(accent, 0.25)}`,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -161,11 +169,11 @@ export async function GET(req: NextRequest) {
                 padding: "8px 14px",
                 borderRadius: 999,
                 background: "rgba(255,255,255,0.95)",
-                border: `2px solid ${accent}ff`,
+                border: `3px solid ${hexToRgba(accent, 1)}`,
                 color: "#0f172a",
                 fontWeight: 800,
                 fontSize: 22,
-                boxShadow: `0 0 10px ${accent}60`,
+                boxShadow: `0 0 10px ${hexToRgba(accent, 0.4)}`,
               }}
             >
               ✅ {chain}
