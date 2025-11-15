@@ -84,7 +84,11 @@ export async function GET(req: NextRequest) {
                                       new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.code
       : null;
 
-    const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
+    // Get base URL from environment variable or detect from request
+    const envBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.SITE_URL?.trim();
+    const requestUrl = new URL(req.url);
+    const detectedBaseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+    const baseUrl = envBaseUrl || detectedBaseUrl || "https://prophecy.house";
     const referralLink = primaryCode 
       ? `${baseUrl}?ref=${primaryCode}`
       : `${baseUrl}?ref=${user}`; // Fallback to wallet address if no code
@@ -142,10 +146,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
       }
 
+      // Get base URL from environment variable or detect from request
+      const envBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.NEXT_PUBLIC_URL?.trim();
+      const requestUrl = new URL(req.url);
+      const detectedBaseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+      const baseUrl = envBaseUrl || detectedBaseUrl || "https://prophecy.house";
+      
       return NextResponse.json({
         ok: true,
         code: code,
-        referralLink: `${process.env.NEXT_PUBLIC_URL || "http://localhost:3000"}?ref=${code}`,
+        referralLink: `${baseUrl}?ref=${code}`,
       });
     } else {
       // Create referral using code (or fallback to wallet address for backward compatibility)
