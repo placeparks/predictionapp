@@ -335,6 +335,7 @@ export default function ReferralsPage() {
               text={referralShareText}
               pageUrl={data.referralLink}
               imageUrl={referralShareImage}
+              linkEmbed={false}
             />
           </div>
         )}
