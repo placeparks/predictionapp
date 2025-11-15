@@ -1,3 +1,4 @@
+import React from "react";
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 
@@ -25,9 +26,9 @@ export async function GET(req: NextRequest) {
       >
         <div style={{ fontSize: 54, fontWeight: 800, marginBottom: 20 }}>Neural Shard Minted</div>
         <div style={{ fontSize: 42, fontWeight: 700, color: "#fbbf24" }}>
-          {tier} {animal}
+          {`${tier} ${animal}`}
         </div>
-        <div style={{ marginTop: 24, fontSize: 36 }}>Token #{tokenId || "—"}</div>
+        <div style={{ marginTop: 24, fontSize: 36 }}>{`Token #${tokenId || "—"}`}</div>
         <div
           style={{
             marginTop: "auto",
