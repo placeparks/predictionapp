@@ -18,7 +18,8 @@ export async function GET(req: NextRequest) {
   const animal = searchParams.get("animal") ?? "Neural Shard";
   const sizeKey = (searchParams.get("size") ?? "small") as keyof typeof PRESETS;
   const { w, h } = PRESETS[sizeKey] ?? PRESETS.small;
-  const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase();
+  // Default to PNG to match the `.png` route path
+  const fmt = (searchParams.get("fmt") ?? "png").toLowerCase();
   const contentType = fmt === "png" ? "image/png" : "image/jpeg";
 
   const artUrl = searchParams.get("art");
