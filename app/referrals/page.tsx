@@ -141,8 +141,6 @@ export default function ReferralsPage() {
   };
 
   const referralCode = data?.primaryCode ?? data?.referralCodes?.[0]?.code ?? "";
-  // For display in the card, use shortened wallet address
-  const shortDisplayCode = referralCode || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "INVITE");
   // For the image URL, use full code or full wallet address (so the image can format it)
   const imageCode = referralCode || address || "INVITE";
   
