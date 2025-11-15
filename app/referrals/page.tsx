@@ -141,7 +141,6 @@ export default function ReferralsPage() {
   };
 
   const referralCode = data?.primaryCode ?? data?.referralCodes?.[0]?.code ?? "";
-  const displayCode = referralCode || (address ? address : "");
   const shortDisplayCode = referralCode || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "INVITE");
   
   const referralShareText = referralCode
