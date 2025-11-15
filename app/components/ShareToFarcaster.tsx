@@ -74,7 +74,9 @@ export default function ShareToFarcaster(props: Props) {
   }, [props]);
 
   const text = props.text ?? defaults.text;
-  const linkEmbed = props.linkEmbed ?? (props.kind !== "nft");
+  // Only include a link embed by default for routes that exist
+  // (globe, referrals). Others default to image-only unless explicitly enabled.
+  const linkEmbed = props.linkEmbed ?? (props.kind === "globe" || props.kind === "referral");
   const primaryImage =
     props.kind === "nft" && typeof defaults.image === "string"
       ? defaults.image.replace("nft.png?token=", "nft.png?fmt=png&token=")
@@ -83,10 +85,11 @@ export default function ShareToFarcaster(props: Props) {
     primaryImage,
     ...(linkEmbed && defaults.link ? [defaults.link] : []),
   ].filter(Boolean) as string[];
-  const channelKey = props.channelKey ?? "base";
+  // Do not default to a channel; let Warpcast post to main if none provided
+  const channelKey = props.channelKey;
 
   return (
-    <div style={{ display: "inline-flex", gap: 8 }}>
+    <div style={{ display: "inline-flex", gap: 8, fontSize: 14, lineHeight: 1.2 }}>
       <button
         disabled={busy}
         onClick={() => {
