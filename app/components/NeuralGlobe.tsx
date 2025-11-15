@@ -719,11 +719,24 @@ export default function NeuralGlobe() {
     minters.length > 0
       ? `Watching ${minters.length.toLocaleString()} minters on the Neural Globe. 🌐`
       : undefined;
+  
+  // Construct the globe image URL with proper parameters
+  const envBase = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const baseUrl = (envBase && envBase.length > 0 ? envBase : "https://predictionapp.vercel.app").replace(/\/$/, "");
+  const globeImageUrl = shareWallet
+    ? `${baseUrl}/api/frames/globe.png?focus=${encodeURIComponent(shareWallet)}&size=large&fmt=jpeg&v=1`
+    : undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap" }}>
-        <ShareToFarcaster kind="globe" wallet={shareWallet} text={shareText} />
+        <ShareToFarcaster 
+          kind="globe" 
+          wallet={shareWallet} 
+          text={shareText}
+          imageUrl={globeImageUrl}
+          linkEmbed={false}
+        />
       </div>
       <div
         style={{
