@@ -60,7 +60,7 @@ const ERC721_MINT_ABI = [
   }
 ];
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://prophecy.house").replace(/\/$/, "");
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://predictionapp.vercel.app").replace(/\/$/, "");
 
 
 interface StatsData {
@@ -762,103 +762,23 @@ function HomeContent() {
                       position: 'relative',
                       zIndex: 1
                     }}>
-                      {mintedTokenId !== null ? (
-                        <Image
-                          src={`/api/image/${mintedTokenId}.png`}
-                          alt="NFT"
-                          width={300}
-                          height={300}
-                          unoptimized
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            borderRadius: '20px',
-                            position: 'relative',
-                            zIndex: 2
-                          }}
-                        />
-                      ) : (
-                        <div style={{ 
-                          position: 'relative', 
-                          zIndex: 2,
-                          animation: 'float 4s ease-in-out infinite',
-                          filter: 'drop-shadow(0 10px 30px rgba(255, 107, 53, 0.5))'
-                        }}>
-                          {data?.animal === 'Tiger' && '🐯'}
-                          {data?.animal === 'Phoenix' && '🔥'}
-                          {data?.animal === 'Dragon' && '🐉'}
-                          {data?.animal === 'Wolf' && '🐺'}
-                          {data?.animal === 'Serpent' && '🐍'}
-                          {data?.animal && !['Tiger', 'Phoenix', 'Dragon', 'Wolf', 'Serpent'].includes(data.animal) && '🏆'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="nft-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative', zIndex: 1 }}>
-                      <div>
-                        <h2 className="shimmer-title" style={{ 
-                          margin: '0 0 0.75rem 0', 
-                          fontSize: '2.5rem',
-                          lineHeight: '1.2'
-                        }}>
-                          Tier {mintedTier ?? data?.tier ?? 0} {mintedAnimal ?? data?.animal ?? ''}
-                        </h2>
-                        <p style={{ 
-                          margin: 0, 
-                          color: 'rgba(255, 255, 255, 0.8)',
-                          fontSize: '1.1rem',
-                          fontWeight: 500
-                        }}>
-                          {hasBalance ? '✨ Your on-chain identity badge' : '🎯 Eligible for minting'}
-                        </p>
-                      </div>
-
-                      <div className="nft-buttons" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                        {(() => {
-                          const currentTier = mintedTier ?? data?.tier ?? 0;
-                          const newTier = data?.stats ? computeTier({
-                            tx_count: data.stats.tx_count,
-                            unique_peers: data.stats.unique_peers ?? 0,
-                            erc20_count: data.stats.erc20_count ?? 0,
-                            erc20_usd: data.stats.erc20_usd ?? 0,
-                            nft_collections: data.stats.nft_collections ?? 0,
-                            nft_count: data.stats.nft_count,
-                            has_basename: data.stats.has_basename ?? false,
-                            basename: data.stats.basename
-                          }) : 0;
-                          const canUpgrade = hasBalance && newTier > currentTier;
-                          const canMint = !hasBalance && newTier >= 1;
-                          const isDisabled = minting || isMintPending || isConfirming || (hasBalance && !canUpgrade);
-                          
+                                              {mintedTokenId !== null && (() => {
+                          const shareTierValue = mintedTier ?? data?.tier ?? null;
+                          const shareAnimalValue = mintedAnimal ?? data?.animal ?? null;
+                          const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
+                          const animalLabel = shareAnimalValue ?? "Neural Shard";
+                          const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
+                          const imageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
                           return (
-                            <button
-                              onClick={handleMint}
-                              disabled={isDisabled}
-                              className="vibrant-button"
-                              style={{
-                                padding: '1rem 2rem',
-                                fontSize: '1rem',
-                                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                position: 'relative',
-                                zIndex: 1
-                              }}
-                              title={hasBalance && !canUpgrade 
-                                ? `You need to qualify for a higher tier (Tier ${currentTier + 1}+) to upgrade. Current: Tier ${currentTier}, Qualify for: Tier ${newTier}`
-                                : undefined}
-                            >
-                              <span style={{ position: 'relative', zIndex: 2 }}>
-                              {minting || isMintPending || isConfirming
-                                  ? (mintStatus || "⏳ Processing...")
-                                : hasBalance
-                                  ? canUpgrade
-                                    ? `⬆️ Upgrade to Tier ${newTier}`
-                                    : `⬆️ Upgrade NFT (Tier ${newTier}, need ${currentTier + 1}+)`
-                                  : canMint
-                                    ? "✨ Mint NFT"
-                                    : "✨ Mint NFT (Requirements not met)"}
-                              </span>
-                            </button>
+                            <ShareToFarcaster
+                              kind="nft"
+                              wallet={address || undefined}
+                              tokenId={mintedTokenId}
+                              text={shareText}
+                              imageUrl={imageUrl}
+                              pageUrl={`${SITE_URL}/nft/${mintedTokenId}`}
+                              linkEmbed={false}
+                            />
                           );
                         })()}
 
@@ -1217,4 +1137,3 @@ export default function Home() {
     </Suspense>
   );
 }
-
