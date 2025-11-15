@@ -14,6 +14,7 @@ type Props = {
   pageUrl?: string;
   channelKey?: string;
   text?: string;
+  linkEmbed?: boolean;
 };
 
 export default function ShareToFarcaster(props: Props) {
@@ -73,7 +74,11 @@ export default function ShareToFarcaster(props: Props) {
   }, [props]);
 
   const text = props.text ?? defaults.text;
-  const embeds = [defaults.image, defaults.link].filter(Boolean) as string[];
+  const linkEmbed = props.linkEmbed ?? true;
+  const embeds = [
+    defaults.image,
+    ...(linkEmbed && defaults.link ? [defaults.link] : []),
+  ].filter(Boolean) as string[];
   const channelKey = props.channelKey ?? "base";
 
   return (
