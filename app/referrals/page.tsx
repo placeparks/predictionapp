@@ -141,11 +141,15 @@ export default function ReferralsPage() {
   };
 
   const referralCode = data?.primaryCode ?? data?.referralCodes?.[0]?.code ?? "";
+  const displayCode = referralCode || (address ? address : "");
+  const shortDisplayCode = referralCode || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "INVITE");
+  
   const referralShareText = referralCode
-    ? `Join Prophecy with my code ${referralCode.toUpperCase()} and claim 50 BET tokens.`
-    : "Join Prophecy with my invite link and get BET tokens to start predicting.";
+    ? `Join Prophecy with my code ${referralCode.toUpperCase()} and claim 50 BET tokens! 🎁`
+    : `Join Prophecy with my invite link and claim 50 BET tokens! 🔮`;
+  
   const referralShareImage = data
-    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(referralCode)}&total=${data?.referrer?.total ?? 0}&active=${data?.referrer?.active ?? 0}`
+    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(shortDisplayCode)}&total=${encodeURIComponent(String(data?.referrer?.total ?? 0))}&active=${encodeURIComponent(String(data?.referrer?.active ?? 0))}&size=large&fmt=jpeg&v=2`
     : undefined;
 
   if (!address) {
