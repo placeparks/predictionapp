@@ -92,13 +92,12 @@ export async function GET(req: NextRequest) {
               "0 24px 60px rgba(124,58,237,0.20), 0 8px 30px rgba(2,6,23,0.15)",
           }}
         >
-          {/* Artwork panel */}
+          {/* Artwork panel (medallion with accent ring) */}
           <div
             style={{
-              width: Math.round((w - 64) * 0.34),
+              width: Math.round((w - 64) * 0.36),
               height: Math.round(h - 64 - 56),
-              borderRadius: 20,
-              overflow: "hidden",
+              borderRadius: 24,
               background: "linear-gradient(180deg,#eef2ff,#e9d5ff)",
               border: `1px solid ${accent}33`,
               display: "flex",
@@ -107,26 +106,52 @@ export async function GET(req: NextRequest) {
               position: "relative",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {artUrl ? (
-              <img
-                src={artUrl}
-                alt="NFT"
-                width={Math.round((w - 64) * 0.34)}
-                height={Math.round(h - 64 - 56)}
-                style={{ objectFit: "cover" }}
-              />
-            ) : (
+            <div
+              style={{
+                width: "78%",
+                aspectRatio: "1 / 1",
+                borderRadius: 9999,
+                position: "relative",
+                background: `radial-gradient(closest-side, ${accent} 0%, ${accent}80 55%, transparent 56%), conic-gradient(from 0deg, ${accent}, #22d3ee, ${accent})`,
+                boxShadow:
+                  `0 18px 60px ${accent}45, inset 0 0 60px rgba(255,255,255,0.35)`,
+                padding: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <div
                 style={{
-                  width: "72%",
-                  height: "72%",
-                  borderRadius: 24,
-                  background: `linear-gradient(135deg, ${accent}, #22d3ee)`,
-                  boxShadow: "inset 0 0 80px rgba(255,255,255,0.25)",
+                  width: "100%",
+                  height: "100%",
+                  borderRadius: 9999,
+                  overflow: "hidden",
+                  background: "#0f172a",
+                  border: "2px solid rgba(255,255,255,0.6)",
                 }}
-              />
-            )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {artUrl ? (
+                  <img
+                    src={artUrl}
+                    alt="NFT"
+                    width={1024}
+                    height={1024}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      background: `linear-gradient(135deg, ${accent}, #22d3ee)`,
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+            {/* chain badge */}
             <div
               style={{
                 position: "absolute",
@@ -134,14 +159,14 @@ export async function GET(req: NextRequest) {
                 left: 16,
                 padding: "8px 14px",
                 borderRadius: 999,
-                background: "rgba(255,255,255,0.9)",
+                background: "rgba(255,255,255,0.95)",
                 border: `1px solid ${accent}55`,
                 color: "#0f172a",
                 fontWeight: 800,
-                fontSize: 24,
+                fontSize: 22,
               }}
             >
-              {chain}
+              ✅ {chain}
             </div>
           </div>
 
@@ -167,10 +192,11 @@ export async function GET(req: NextRequest) {
               {tier} {animal}
             </div>
 
-            <div style={{ marginTop: 18, display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ marginTop: 18, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               {chip(`Token #${tokenId || "—"}`)}
-              {chip("On-Chain Proof")}
+              {chip("On‑Chain Proof")}
               {chip("Claimable Perks")}
+              {chip("Limited Edition")}
             </div>
 
             <div
