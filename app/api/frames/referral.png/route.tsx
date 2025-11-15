@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
             gap: 32,
           }}
         >
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ fontSize: 20, opacity: 0.7 }}>Referral code</div>
             <div style={{ fontSize: 56, fontWeight: 900, letterSpacing: "0.3em" }}>{codeDisplay}</div>
           </div>
@@ -74,6 +74,9 @@ export async function GET(req: NextRequest) {
               borderRadius: 18,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
             }}
           >
             <div style={{ fontSize: 16, letterSpacing: "0.1em", opacity: 0.7 }}>TOTAL INVITES</div>
@@ -85,6 +88,9 @@ export async function GET(req: NextRequest) {
               borderRadius: 18,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
             }}
           >
             <div style={{ fontSize: 16, letterSpacing: "0.1em", opacity: 0.7 }}>ACTIVE</div>
