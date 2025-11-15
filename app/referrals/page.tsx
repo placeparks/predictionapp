@@ -141,14 +141,17 @@ export default function ReferralsPage() {
   };
 
   const referralCode = data?.primaryCode ?? data?.referralCodes?.[0]?.code ?? "";
+  // For display in the card, use shortened wallet address
   const shortDisplayCode = referralCode || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "INVITE");
+  // For the image URL, use full code or full wallet address (so the image can format it)
+  const imageCode = referralCode || address || "INVITE";
   
   const referralShareText = referralCode
     ? `Join Prophecy with my code ${referralCode.toUpperCase()} and claim 50 BET tokens! 🎁`
     : `Join Prophecy with my invite link and claim 50 BET tokens! 🔮`;
   
   const referralShareImage = data
-    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(shortDisplayCode)}&total=${encodeURIComponent(String(data?.referrer?.total ?? 0))}&active=${encodeURIComponent(String(data?.referrer?.active ?? 0))}&size=large&fmt=jpeg&v=2`
+    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(imageCode)}&total=${encodeURIComponent(String(data?.referrer?.total ?? 0))}&active=${encodeURIComponent(String(data?.referrer?.active ?? 0))}&size=large&fmt=jpeg&v=2`
     : undefined;
 
   if (!address) {
