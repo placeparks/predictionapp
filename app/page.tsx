@@ -9,8 +9,7 @@ import Image from 'next/image';
 import KalshiPredictions from './components/KalshiPredictions';
 import FAQ from './components/FAQ';
 import PredictionsDashboard from './components/PredictionsDashboard';
-import ShareToFarcaster from './components/ShareToFarcaster';
-import { computeTier } from '@/lib/tier';
+
 
 // Prevent static generation - this page uses client-side hooks
 export const dynamic = 'force-dynamic';
@@ -513,6 +512,7 @@ function HomeContent() {
       findTokenId();
     }
   }, [hasBalance, balance, mintedTokenId, address, contractAddress]);
+
   return (
     <>
       {/* Floating Particles Background */}
@@ -762,49 +762,38 @@ function HomeContent() {
                       position: 'relative',
                       zIndex: 1
                     }}>
-                      <button
-                          onClick={() => fetchStats(true)}
-                          disabled={loading}
-                          className="bounce-btn"
+                      {mintedTokenId !== null ? (
+                        <Image
+                          src={`/api/image/${mintedTokenId}.png`}
+                          alt="NFT"
+                          width={300}
+                          height={300}
+                          unoptimized
                           style={{
-                            padding: '1rem 2rem',
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            backdropFilter: 'blur(10px)',
-                            border: '2px solid rgba(255, 255, 255, 0.3)',
-                            borderRadius: '16px',
-                            color: '#fff',
-                            fontWeight: 700,
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '1rem',
-                            opacity: loading ? 0.6 : 1,
-                            transition: 'all 0.3s',
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            borderRadius: '20px',
                             position: 'relative',
-                            zIndex: 1
+                            zIndex: 2
                           }}
-                        >
-                          {loading ? '⟳' : '🔄'} Refresh
-                        </button>
-                        {mintedTokenId !== null && (() => {
-                          const shareTierValue = mintedTier ?? data?.tier ?? null;
-                          const shareAnimalValue = mintedAnimal ?? data?.animal ?? null;
-                          const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
-                          const animalLabel = shareAnimalValue ?? "Neural Shard";
-                          const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
-                          // Include the actual NFT image via art parameter, use small JPEG for optimal sharing
-                          const nftImageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
-                          const imageUrl = `${SITE_URL}/api/frames/nft.png?token=${mintedTokenId}&tier=${encodeURIComponent(tierLabel)}&animal=${encodeURIComponent(animalLabel)}&size=small&fmt=jpeg&art=${encodeURIComponent(nftImageUrl)}`;
-                          return (
-                            <ShareToFarcaster
-                              kind="nft"
-                              wallet={address || undefined}
-                              tokenId={mintedTokenId}
-                              text={shareText}
-                              imageUrl={imageUrl}
-                              pageUrl={`${SITE_URL}/nft/${mintedTokenId}`}
-                            />
-                          );
-                        })()}
-                      </div>
+                        />
+                      ) : (
+                        <div style={{ 
+                          position: 'relative', 
+                          zIndex: 2,
+                          animation: 'float 4s ease-in-out infinite',
+                          filter: 'drop-shadow(0 10px 30px rgba(255, 107, 53, 0.5))'
+                        }}>
+                          {data?.animal === 'Tiger' && '🐯'}
+                          {data?.animal === 'Phoenix' && '🔥'}
+                          {data?.animal === 'Dragon' && '🐉'}
+                          {data?.animal === 'Wolf' && '🐺'}
+                          {data?.animal === 'Serpent' && '🐍'}
+                          {data?.animal && !['Tiger', 'Phoenix', 'Dragon', 'Wolf', 'Serpent'].includes(data.animal) && '🏆'}
+                        </div>
+                      )}
+                    </div>
 
                       {mintStatus && (
                         <div style={{
@@ -822,7 +811,6 @@ function HomeContent() {
                       )}
                     </div>
                   </div>
-                </div>
 
                 <div className="stats-grid" style={{
                   display: 'grid',
