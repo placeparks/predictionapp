@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         padding: `${Math.round(h * 0.012)} ${Math.round(h * 0.02)}`,
         borderRadius: 999,
         background: "rgba(15,23,42,0.08)",
-        border: "1px solid rgba(148,163,184,0.25)",
+        border: `2px solid ${accent}cc`,
         fontSize: Math.round(h * 0.04),
         fontWeight: 700,
         color: "#0f172a",
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         padding: `${Math.round(h * 0.01)} ${Math.round(h * 0.018)}`,
         borderRadius: 999,
         background: `${accent}1a`,
-        border: `1px solid ${accent}66`,
+        border: `2px solid ${accent}ff`,
         color: accent,
         fontSize: Math.round(h * 0.035),
         fontWeight: 800,
@@ -87,9 +87,9 @@ export async function GET(req: NextRequest) {
             padding: 28,
             borderRadius: 28,
             background: "linear-gradient(180deg,#ffffff,#f8fafc)",
-            border: "1px solid rgba(15,23,42,0.06)",
+            border: `3px solid ${accent}ff`,
             boxShadow:
-              "0 24px 60px rgba(124,58,237,0.20), 0 8px 30px rgba(2,6,23,0.15)",
+              `0 24px 60px ${accent}40, 0 8px 30px rgba(2,6,23,0.15), inset 0 0 0 1px ${accent}33`,
           }}
         >
           {/* Artwork panel (medallion with accent ring) */}
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
               height: Math.round(h - 64 - 56),
               borderRadius: 24,
               background: "linear-gradient(180deg,#eef2ff,#e9d5ff)",
-              border: `1px solid ${accent}33`,
+              border: `3px solid ${accent}ff`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -128,7 +128,8 @@ export async function GET(req: NextRequest) {
                   borderRadius: 9999,
                   overflow: "hidden",
                   background: "#0f172a",
-                  border: "2px solid rgba(255,255,255,0.6)",
+                  border: `3px solid ${accent}ff`,
+                  boxShadow: `0 0 20px ${accent}80, inset 0 0 20px ${accent}40`,
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -160,10 +161,11 @@ export async function GET(req: NextRequest) {
                 padding: "8px 14px",
                 borderRadius: 999,
                 background: "rgba(255,255,255,0.95)",
-                border: `1px solid ${accent}55`,
+                border: `2px solid ${accent}ff`,
                 color: "#0f172a",
                 fontWeight: 800,
                 fontSize: 22,
+                boxShadow: `0 0 10px ${accent}60`,
               }}
             >
               ✅ {chain}
