@@ -1,4 +1,4 @@
-111111111111111111101000000import React from "react";
+import React from "react";
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 
