@@ -46,10 +46,10 @@ export default function ShareToFarcaster(props: Props) {
         };
       }
       case "globe": {
-        const image = props.imageUrl ?? `${baseUrl}/api/frames/globe.png?focus=${props.wallet ?? ""}`;
+        const image = props.imageUrl ?? `${baseUrl}/api/frames/globe.png?focus=${props.wallet ?? ""}&size=large&fmt=jpeg&v=1`;
         const link = props.pageUrl ?? `${baseUrl}/globe?focus=${props.wallet ?? ""}`;
         return {
-          text: "I’m on the Neural Globe—live network of minters and predictors. 🌐",
+          text: "I'm on the Neural Globe—live network of minters and predictors. 🌐",
           image,
           link,
         };
@@ -77,8 +77,8 @@ export default function ShareToFarcaster(props: Props) {
 
   const text = props.text ?? defaults.text;
   // Only include a link embed by default for routes that exist
-  // (globe, referrals). Others default to image-only unless explicitly enabled.
-  const linkEmbed = props.linkEmbed ?? (props.kind === "globe" || props.kind === "referral");
+  // (referrals). Others default to image-only unless explicitly enabled.
+  const linkEmbed = props.linkEmbed ?? (props.kind === "referral");
   // Use props.imageUrl directly if provided, otherwise use defaults.image
   // This ensures all query parameters (tier, animal, art, v, etc.) are preserved
   let primaryImage = (props.imageUrl ?? defaults.image) as string | undefined;
