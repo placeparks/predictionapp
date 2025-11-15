@@ -22,7 +22,7 @@ export default function ShareToFarcaster(props: Props) {
 
   const defaults = useMemo(() => {
     const envBase = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-    const baseUrl = (envBase && envBase.length > 0 ? envBase : "https://prophecy.house").replace(/\/$/, "");
+    const baseUrl = (envBase && envBase.length > 0 ? envBase : "https://predictionapp.vercel.app").replace(/\/$/, "");
 
     switch (props.kind) {
       case "nft": {
