@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
   const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase(); // "jpeg" or "png"
   const contentType = fmt === "png" ? "image/png" : "image/jpeg";
 
-  const codeDisplay = code ? code.toUpperCase() : "INVITE";
+  // If it's a wallet address, shorten it for display
+  const codeDisplay = code 
+    ? (/^0x[a-f0-9]{40}$/i.test(code) 
+        ? `${code.slice(0, 6).toUpperCase()}...${code.slice(-4).toUpperCase()}`
+        : code.toUpperCase())
+    : "INVITE";
 
   const image = new ImageResponse(
     (
