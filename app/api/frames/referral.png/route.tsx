@@ -111,6 +111,7 @@ export async function GET(req: NextRequest) {
                 fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.1em",
+                display: "flex",
               }}
             >
               Your Referral Code
@@ -125,6 +126,9 @@ export async function GET(req: NextRequest) {
                 border: "3px solid rgba(255, 215, 0, 0.5)",
                 boxShadow: "0 10px 40px rgba(255, 215, 0, 0.2), 0 0 20px rgba(255, 215, 0, 0.1) inset",
                 marginBottom: Math.round(w * 0.025),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <div
@@ -226,6 +230,7 @@ export async function GET(req: NextRequest) {
                 textAlign: "center",
                 fontWeight: 600,
                 lineHeight: 1.4,
+                display: "flex",
               }}
             >
               Join Prophecy • Predict the Future • Earn Rewards 🔮
