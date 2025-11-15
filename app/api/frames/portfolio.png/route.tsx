@@ -1,3 +1,4 @@
+import React from "react";
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: "0.08em" }}>BASE DAILY</div>
             <div style={{ fontSize: 28, opacity: 0.85, marginTop: 8 }}>Portfolio Snapshot</div>
           </div>
@@ -76,17 +77,21 @@ export async function GET(req: NextRequest) {
             alignItems: "center",
           }}
         >
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: 24, opacity: 0.7 }}>Wallet</div>
-            <div style={{ fontSize: 40, fontWeight: 700, marginTop: 6 }}>{truncated}</div>
+            <div style={{ fontSize: 40, fontWeight: 700 }}>{truncated}</div>
           </div>
           <div
             style={{
               textAlign: "right",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 6,
             }}
           >
             <div style={{ fontSize: 24, opacity: 0.7 }}>BET balance</div>
-            <div style={{ fontSize: 42, fontWeight: 800, color: "#facc15", marginTop: 6 }}>
+            <div style={{ fontSize: 42, fontWeight: 800, color: "#facc15" }}>
               {betTokens >= 0 ? betTokens.toLocaleString("en-US") : "—"}
             </div>
           </div>
@@ -109,12 +114,15 @@ export async function GET(req: NextRequest) {
                 background: "rgba(255,255,255,0.04)",
                 border: `1px solid ${stat.accent}33`,
                 boxShadow: `0 12px 30px ${stat.accent}1a`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
               }}
             >
               <div style={{ fontSize: 18, letterSpacing: "0.1em", color: `${stat.accent}` }}>
                 {stat.label}
               </div>
-              <div style={{ fontSize: 54, fontWeight: 900, marginTop: 10 }}>{stat.value}</div>
+              <div style={{ fontSize: 54, fontWeight: 900 }}>{stat.value}</div>
             </div>
           ))}
         </div>
