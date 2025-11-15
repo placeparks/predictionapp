@@ -1,4 +1,4 @@
-import React from "react";
+111111111111111111101000000import React from "react";
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 
@@ -100,8 +100,7 @@ export async function GET(req: NextRequest) {
         <div
           style={{
             marginTop: 40,
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            display: "flex",
             gap: 20,
           }}
         >
@@ -117,9 +116,10 @@ export async function GET(req: NextRequest) {
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
+                flex: 1,
               }}
             >
-              <div style={{ fontSize: 18, letterSpacing: "0.1em", color: `${stat.accent}` }}>
+              <div style={{ fontSize: 18, letterSpacing: "0.1em", color: stat.accent }}>
                 {stat.label}
               </div>
               <div style={{ fontSize: 54, fontWeight: 900 }}>{stat.value}</div>
