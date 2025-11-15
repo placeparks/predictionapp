@@ -149,7 +149,7 @@ export default function ReferralsPage() {
     : `Join Prophecy with my invite link and claim 50 BET tokens! 🔮`;
   
   const referralShareImage = data
-    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(imageCode)}&total=${encodeURIComponent(String(data?.referrer?.total ?? 0))}&active=${encodeURIComponent(String(data?.referrer?.active ?? 0))}&size=large&fmt=jpeg&v=3`
+    ? `${SITE_URL}/api/frames/referral.png?code=${encodeURIComponent(imageCode)}&total=${encodeURIComponent(String(data?.referrer?.total ?? 0))}&active=${encodeURIComponent(String(data?.referrer?.active ?? 0))}&link=${encodeURIComponent(data.referralLink)}&size=large&fmt=jpeg&v=2`
     : undefined;
 
   if (!address) {
@@ -335,7 +335,6 @@ export default function ReferralsPage() {
               text={referralShareText}
               pageUrl={data.referralLink}
               imageUrl={referralShareImage}
-              linkEmbed={false}
             />
           </div>
         )}
