@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// simple presets; you can tweak
 const PRESETS = {
   small: { w: 800, h: 420 },
   medium: { w: 1000, h: 525 },
@@ -17,11 +16,10 @@ export async function GET(req: NextRequest) {
   const total = Number(searchParams.get("total") ?? "0") || 0;
   const active = Number(searchParams.get("active") ?? "0") || 0;
 
-  // choose preset and format
   const sizeKey = (searchParams.get("size") ?? "small") as keyof typeof PRESETS;
   const { w, h } = PRESETS[sizeKey] ?? PRESETS.small;
 
-  const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase(); // "jpeg" or "png"
+  const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase();
   const contentType = fmt === "png" ? "image/png" : "image/jpeg";
 
   // If it's a wallet address, shorten it for display
@@ -29,7 +27,7 @@ export async function GET(req: NextRequest) {
     ? (/^0x[a-f0-9]{40}$/i.test(code) 
         ? `${code.slice(0, 6).toUpperCase()}...${code.slice(-4).toUpperCase()}`
         : code.toUpperCase())
-    : "INVITE";
+    : "GET-STARTED";
 
   const image = new ImageResponse(
     (
@@ -38,97 +36,242 @@ export async function GET(req: NextRequest) {
           width: w,
           height: h,
           display: "flex",
-          flexDirection: "column",
-          background: "linear-gradient(140deg, #0b0f1e 0%, #1c2750 45%, #532b74 100%)",
-          color: "#f8fafc",
-          padding: Math.round(w * 0.06),
+          alignItems: "center",
+          justifyContent: "center",
+          background: "radial-gradient(1400px 800px at 50% 0%, #1a1f3a, #0a0e27 50%, #050812 100%)",
           fontFamily: "Inter, system-ui, sans-serif",
         }}
       >
-        <div style={{ fontSize: Math.round(w * 0.04), fontWeight: 800, letterSpacing: "0.08em" }}>
-          PROPHECY INVITE
-        </div>
-        <div style={{ fontSize: Math.round(w * 0.027), marginTop: 8, opacity: 0.85 }}>
-          Share BET energy with friends
-        </div>
-
+        {/* Main Card */}
         <div
           style={{
-            marginTop: Math.round(w * 0.033),
-            padding: `${Math.round(w * 0.015)} ${Math.round(w * 0.019)}`,
-            borderRadius: Math.round(w * 0.02),
-            background: "rgba(15,23,42,0.7)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            width: Math.round(w - 80),
+            height: Math.round(h - 80),
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: Math.round(w * 0.027),
+            flexDirection: "column",
+            padding: Math.round(w * 0.045),
+            borderRadius: 28,
+            background: "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))",
+            border: "3px solid rgba(255, 215, 0, 0.4)",
+            boxShadow: "0 30px 80px rgba(255, 215, 0, 0.3), 0 0 0 2px rgba(255, 215, 0, 0.1) inset",
+            position: "relative",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: Math.round(w * 0.017), opacity: 0.7 }}>Referral code</div>
-            <div style={{ fontSize: Math.round(w * 0.047), fontWeight: 900, letterSpacing: "0.3em" }}>
-              {codeDisplay}
-            </div>
-          </div>
+          {/* Glowing orb background effect */}
           <div
             style={{
-              padding: `${Math.round(w * 0.008)} ${Math.round(w * 0.012)}`,
-              borderRadius: Math.round(w * 0.013),
-              background: "linear-gradient(135deg,#f472b6,#facc15)",
-              color: "#0f172a",
-              fontSize: Math.round(w * 0.022),
-              fontWeight: 800,
+              position: "absolute",
+              top: "-30%",
+              right: "-10%",
+              width: "50%",
+              height: "80%",
+              background: "radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%)",
+              borderRadius: "50%",
+              filter: "blur(60px)",
             }}
-          >
-            +50 BET for new prophets
-          </div>
-        </div>
+          />
 
-        <div
-          style={{
-            marginTop: Math.round(w * 0.03),
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0,1fr))",
-            gap: Math.round(w * 0.02),
-          }}
-        >
-          <div
-            style={{
-              padding: Math.round(w * 0.012),
-              borderRadius: Math.round(w * 0.015),
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontSize: Math.round(w * 0.013), letterSpacing: "0.1em", opacity: 0.7 }}>
-              TOTAL INVITES
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                padding: "10px 20px",
+                borderRadius: 999,
+                background: "rgba(255, 215, 0, 0.2)",
+                border: "2px solid rgba(255, 215, 0, 0.6)",
+                fontSize: Math.round(w * 0.032),
+                fontWeight: 800,
+                color: "#FFD700",
+                letterSpacing: "0.08em",
+              }}
+            >
+              🎁 PROPHECY INVITE
             </div>
-            <div style={{ fontSize: Math.round(w * 0.043), fontWeight: 900 }}>{total}</div>
-          </div>
-          <div
-            style={{
-              padding: Math.round(w * 0.012),
-              borderRadius: Math.round(w * 0.015),
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontSize: Math.round(w * 0.013), letterSpacing: "0.1em", opacity: 0.7 }}>
-              ACTIVE
+            <div
+              style={{
+                padding: "8px 16px",
+                borderRadius: 999,
+                background: "linear-gradient(135deg, #f472b6, #facc15)",
+                fontSize: Math.round(w * 0.022),
+                fontWeight: 800,
+                color: "#0f172a",
+              }}
+            >
+              +50 BET TOKENS
             </div>
-            <div style={{ fontSize: Math.round(w * 0.043), fontWeight: 900 }}>{active}</div>
           </div>
-        </div>
 
-        <div style={{ marginTop: "auto", opacity: 0.65, fontSize: Math.round(w * 0.02) }}>
-          prophecy.house
+          {/* Main Content */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                fontSize: Math.round(w * 0.026),
+                color: "rgba(255, 255, 255, 0.7)",
+                marginBottom: 12,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+              }}
+            >
+              Your Referral Code
+            </div>
+            
+            {/* Code Display Box */}
+            <div
+              style={{
+                padding: Math.round(w * 0.025),
+                borderRadius: 20,
+                background: "rgba(15, 23, 42, 0.8)",
+                border: "3px solid rgba(255, 215, 0, 0.5)",
+                boxShadow: "0 10px 40px rgba(255, 215, 0, 0.2), 0 0 20px rgba(255, 215, 0, 0.1) inset",
+                marginBottom: Math.round(w * 0.025),
+              }}
+            >
+              <div
+                style={{
+                  fontSize: Math.round(w * 0.06),
+                  fontWeight: 900,
+                  letterSpacing: "0.05em",
+                  background: "linear-gradient(135deg, #FFD700, #FFA500)",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  textAlign: "center",
+                }}
+              >
+                {codeDisplay}
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: Math.round(w * 0.02),
+                marginBottom: Math.round(w * 0.025),
+              }}
+            >
+              <div
+                style={{
+                  padding: Math.round(w * 0.018),
+                  borderRadius: 16,
+                  background: "rgba(99, 102, 241, 0.15)",
+                  border: "2px solid rgba(99, 102, 241, 0.3)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: Math.round(w * 0.017),
+                    letterSpacing: "0.08em",
+                    color: "rgba(255, 255, 255, 0.6)",
+                    fontWeight: 700,
+                  }}
+                >
+                  TOTAL INVITES
+                </div>
+                <div
+                  style={{
+                    fontSize: Math.round(w * 0.05),
+                    fontWeight: 900,
+                    color: "#fff",
+                  }}
+                >
+                  {total}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: Math.round(w * 0.018),
+                  borderRadius: 16,
+                  background: "rgba(16, 185, 129, 0.15)",
+                  border: "2px solid rgba(16, 185, 129, 0.3)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: Math.round(w * 0.017),
+                    letterSpacing: "0.08em",
+                    color: "rgba(255, 255, 255, 0.6)",
+                    fontWeight: 700,
+                  }}
+                >
+                  ACTIVE
+                </div>
+                <div
+                  style={{
+                    fontSize: Math.round(w * 0.05),
+                    fontWeight: 900,
+                    color: "#fff",
+                  }}
+                >
+                  {active}
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Text */}
+            <div
+              style={{
+                fontSize: Math.round(w * 0.024),
+                color: "rgba(255, 255, 255, 0.8)",
+                textAlign: "center",
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              Join Prophecy • Predict the Future • Earn Rewards 🔮
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingTop: 20,
+              borderTop: "2px solid rgba(255, 255, 255, 0.1)",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: "#10b981",
+                  boxShadow: "0 0 0 4px rgba(16, 185, 129, 0.3)",
+                }}
+              />
+              <div
+                style={{
+                  fontSize: Math.round(w * 0.02),
+                  color: "rgba(255, 255, 255, 0.7)",
+                  fontWeight: 600,
+                }}
+              >
+                Live on Base
+              </div>
+            </div>
+            <div
+              style={{
+                fontSize: Math.round(w * 0.024),
+                color: "#FFD700",
+                fontWeight: 800,
+              }}
+            >
+              prophecy.house
+            </div>
+          </div>
         </div>
       </div>
     ),
