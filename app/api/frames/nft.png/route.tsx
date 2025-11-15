@@ -27,7 +27,32 @@ export async function GET(req: NextRequest) {
 
   // optional: include actual NFT art (pass art=URL-encoded absolute URL)
   const artUrl = searchParams.get("art");
-  const showArt = !!artUrl;
+  let artDataUrl: string | null = null;
+  
+  // Fetch the NFT image and convert to base64 data URL for @vercel/og
+  if (artUrl) {
+    try {
+      const artResponse = await fetch(artUrl, {
+        headers: {
+          'Accept': 'image/*',
+        },
+      });
+      if (artResponse.ok) {
+        const arrayBuffer = await artResponse.arrayBuffer();
+        // Convert ArrayBuffer to base64 (edge runtime compatible)
+        const bytes = new Uint8Array(arrayBuffer);
+        const binary = String.fromCharCode(...bytes);
+        const base64 = btoa(binary);
+        const contentType = artResponse.headers.get('content-type') || 'image/png';
+        artDataUrl = `data:${contentType};base64,${base64}`;
+      }
+    } catch (error) {
+      console.error('[nft.png] Failed to fetch art image:', error);
+      // Continue without art if fetch fails
+    }
+  }
+
+  const showArt = !!artDataUrl;
 
   const image = new ImageResponse(
     (
@@ -59,11 +84,10 @@ export async function GET(req: NextRequest) {
               background: "rgba(0,0,0,0.2)",
             }}
           >
-            {/* @vercel/og fetches remote images fine—ensure it's a public absolute URL */}
-            {/* Keep the rendered size modest to reduce final bytes */}
+            {/* Use data URL for reliable image loading in edge runtime */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={artUrl!}
+              src={artDataUrl!}
               alt="NFT"
               width={Math.round(w * 0.36)}
               height={Math.round(h - 64)}
