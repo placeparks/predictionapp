@@ -516,7 +516,7 @@ function HomeContent() {
   return (
     <>
       {/* Floating Particles Background */}
-          <div style={{
+      <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -762,27 +762,7 @@ function HomeContent() {
                       position: 'relative',
                       zIndex: 1
                     }}>
-                                              {mintedTokenId !== null && (() => {
-                          const shareTierValue = mintedTier ?? data?.tier ?? null;
-                          const shareAnimalValue = mintedAnimal ?? data?.animal ?? null;
-                          const tierLabel = shareTierValue ? `Tier ${shareTierValue}` : "Tier";
-                          const animalLabel = shareAnimalValue ?? "Neural Shard";
-                          const shareText = `Minted my ${tierLabel} ${animalLabel} on Base. ⚡️`;
-                          const imageUrl = `${SITE_URL}/api/image/${mintedTokenId}.png`;
-                          return (
-                            <ShareToFarcaster
-                              kind="nft"
-                              wallet={address || undefined}
-                              tokenId={mintedTokenId}
-                              text={shareText}
-                              imageUrl={imageUrl}
-                              pageUrl={`${SITE_URL}/nft/${mintedTokenId}`}
-                              linkEmbed={false}
-                            />
-                          );
-                        })()}
-
-                        <button
+                      <button
                           onClick={() => fetchStats(true)}
                           disabled={loading}
                           className="bounce-btn"
@@ -1090,7 +1070,7 @@ function HomeContent() {
                 </p>
               </div>
             )}
-              </>
+            </>
             ) : null}
             
             {/* Dashboard content - only show when dashboard tab is active */}
