@@ -142,17 +142,18 @@ export async function GET(req: NextRequest) {
               </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Stats Grid (using flex instead of grid) */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
+                display: "flex",
+                flexDirection: "row",
                 gap: Math.round(w * 0.02),
                 marginBottom: Math.round(w * 0.025),
               }}
             >
               <div
                 style={{
+                  flex: 1,
                   padding: Math.round(w * 0.018),
                   borderRadius: 16,
                   background: "rgba(99, 102, 241, 0.15)",
@@ -185,6 +186,7 @@ export async function GET(req: NextRequest) {
 
               <div
                 style={{
+                  flex: 1,
                   padding: Math.round(w * 0.018),
                   borderRadius: 16,
                   background: "rgba(16, 185, 129, 0.15)",
