@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// simple presets; you can tweak
 const PRESETS = {
   small: { w: 800, h: 420 },
   medium: { w: 1000, h: 525 },
@@ -17,42 +16,13 @@ export async function GET(req: NextRequest) {
   const tokenId = searchParams.get("token") ?? "";
   const tier = searchParams.get("tier") ?? "Tier";
   const animal = searchParams.get("animal") ?? "Neural Shard";
-
-  // choose preset and format
   const sizeKey = (searchParams.get("size") ?? "small") as keyof typeof PRESETS;
   const { w, h } = PRESETS[sizeKey] ?? PRESETS.small;
-
-  const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase(); // "jpeg" or "png"
+  const fmt = (searchParams.get("fmt") ?? "jpeg").toLowerCase();
   const contentType = fmt === "png" ? "image/png" : "image/jpeg";
 
-  // optional: include actual NFT art (pass art=URL-encoded absolute URL)
   const artUrl = searchParams.get("art");
-  let artDataUrl: string | null = null;
-  
-  // Fetch the NFT image and convert to base64 data URL for @vercel/og
-  if (artUrl) {
-    try {
-      const artResponse = await fetch(artUrl, {
-        headers: {
-          'Accept': 'image/*',
-        },
-      });
-      if (artResponse.ok) {
-        const arrayBuffer = await artResponse.arrayBuffer();
-        // Convert ArrayBuffer to base64 (edge runtime compatible)
-        const bytes = new Uint8Array(arrayBuffer);
-        const binary = String.fromCharCode(...bytes);
-        const base64 = btoa(binary);
-        const contentType = artResponse.headers.get('content-type') || 'image/png';
-        artDataUrl = `data:${contentType};base64,${base64}`;
-      }
-    } catch (error) {
-      console.error('[nft.png] Failed to fetch art image:', error);
-      // Continue without art if fetch fails
-    }
-  }
-
-  const showArt = !!artDataUrl;
+  const showArt = !!artUrl;
 
   const image = new ImageResponse(
     (
@@ -68,7 +38,6 @@ export async function GET(req: NextRequest) {
           padding: 32,
         }}
       >
-        {/* Left: optional artwork thumbnail (scaled, keeps bytes low) */}
         {showArt && (
           <div
             style={{
@@ -84,10 +53,9 @@ export async function GET(req: NextRequest) {
               background: "rgba(0,0,0,0.2)",
             }}
           >
-            {/* Use data URL for reliable image loading in edge runtime */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={artDataUrl!}
+              src={artUrl!}
               alt="NFT"
               width={Math.round(w * 0.36)}
               height={Math.round(h - 64)}
@@ -96,7 +64,6 @@ export async function GET(req: NextRequest) {
           </div>
         )}
 
-        {/* Right: text card */}
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           <div style={{ fontSize: Math.round(h * 0.1), fontWeight: 800, lineHeight: 1.1 }}>
             Neural Shard Minted
@@ -129,7 +96,7 @@ export async function GET(req: NextRequest) {
   return new Response(image.body, {
     status: 200,
     headers: {
-      "Content-Type": contentType, // JPEG is far smaller than PNG for cards
+      "Content-Type": contentType,
       "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",
     },
   });
