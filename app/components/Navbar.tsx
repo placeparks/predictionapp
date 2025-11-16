@@ -278,6 +278,7 @@ export default function Navbar() {
   const dropdownContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const truncatedAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
@@ -436,6 +437,7 @@ export default function Navbar() {
       };
     }
   }, [mobileMenuOpen]);
+
 
   return (
     <>
@@ -687,39 +689,21 @@ export default function Navbar() {
           }
         }
 
-        .wallet-connect-wrapper :global(button),
-        .wallet-connect-wrapper :global([role="button"]) {
-          background: linear-gradient(135deg, #78d042, #4a90e2) !important;
-          background-size: 200% 200% !important;
-          animation: gradient-shift 3s ease infinite !important;
-          border: 2px solid rgba(255, 255, 255, 0.3) !important;
-          color: #FFFFFF !important;
-          border-radius: 10px !important;
-          padding: clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.65rem, 1.2vw, 0.95rem) !important;
-          font-weight: 800 !important;
-          transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-          font-size: clamp(0.6rem, 0.85vw, 0.75rem) !important;
-          box-shadow: 
-            0 6px 20px rgba(120, 208, 66, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-          white-space: nowrap !important;
-          flex-shrink: 0 !important;
+
+        @media (max-width: 768px) {
+          .wallet-section {
+            display: none !important;
+          }
         }
 
-        .wallet-connect-wrapper :global(button:hover),
-        .wallet-connect-wrapper :global([role="button"]:hover) {
-          transform: translateY(-3px) scale(1.05) !important;
-          box-shadow: 
-            0 10px 30px rgba(120, 208, 66, 0.6),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+        .energy-desktop-only {
+          display: flex !important;
         }
 
-        .wallet-connect-wrapper :global(button:active),
-        .wallet-connect-wrapper :global([role="button"]:active) {
-          transform: translateY(-1px) scale(1.02) !important;
-          animation: bounce-playful 0.4s ease-out !important;
+        @media (max-width: 768px) {
+          .energy-desktop-only {
+            display: none !important;
+          }
         }
 
         /* Hide images/avatars in wallet connect component */
@@ -774,16 +758,20 @@ export default function Navbar() {
           border: 2px solid rgba(255, 255, 255, 0.2) !important;
           color: #FFD700 !important;
           border-radius: 12px !important;
-          padding: 0.6rem 1rem !important;
+          width: 48px !important;
+          height: 48px !important;
           font-weight: 800 !important;
           font-size: 1.2rem !important;
           transition: all 0.3s !important;
           cursor: pointer !important;
           z-index: 101 !important;
           position: relative !important;
-          display: block !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
           visibility: visible !important;
           opacity: 1 !important;
+          margin-left: auto !important;
         }
 
         .mobile-menu-btn:hover {
@@ -855,6 +843,7 @@ export default function Navbar() {
           alignItems: 'center',
           maxWidth: '1400px',
           margin: '0 auto',
+          width: '100%',
           gap: 'clamp(0.5rem, 1vw, 1rem)',
           position: 'relative',
           flexWrap: 'nowrap',
@@ -995,6 +984,29 @@ export default function Navbar() {
             >FAQ</button>
           </nav>
 
+          <div className="wallet-section" style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            alignItems: 'center', 
+            gap: 'clamp(0.3rem, 0.6vw, 0.6rem)', 
+            flexShrink: 0,
+            minWidth: 'fit-content',
+            flexWrap: 'nowrap'
+          }}>
+            {address && (
+              <div className="energy-desktop-only" style={{ flexShrink: 0 }}>
+                <HeaderEnergy address={address || undefined} />
+              </div>
+            )}
+            <div className="wallet-connect-wrapper" style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+        <DynamicConnectWallet />
+        </div>
+          </div>
+
           {/* Mobile Menu Button */}
           <button
             className="mobile-menu-btn"
@@ -1081,10 +1093,9 @@ export default function Navbar() {
                 onClick={handleFAQClick}
               >FAQ</button>
               
-              {/* BET Tokens and Energy Section in Mobile Menu */}
+              {/* BET Tokens and Energy in Mobile Menu */}
               {address && (
                 <div 
-                  className="mobile-menu-wallet" 
                   style={{ 
                     padding: '0.75rem 1rem',
                     borderTop: '2px solid rgba(255, 255, 255, 0.1)',
@@ -1111,7 +1122,7 @@ export default function Navbar() {
                   <div style={{ 
                     padding: '0.75rem', 
                     background: 'rgba(255, 255, 255, 0.1)', 
-                    border: '1px solid rgba(255, 255, 255, 0.2)', 
+                    border: '1px solid rgba(120, 208, 66, 0.3)', 
                     borderRadius: '8px', 
                     fontSize: '0.875rem',
                     display: 'flex',
@@ -1120,36 +1131,20 @@ export default function Navbar() {
                     minHeight: '44px'
                   }}>
                     <span style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>⚡ Energy:</span>
-                    <strong style={{ color: '#fff', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
+                    <strong style={{ color: '#78d042', fontSize: '1rem' }}>{energy ?? 0}/100</strong>
                   </div>
                 </div>
               )}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                marginTop: '0.75rem',
+                width: '100%'
+              }}>
+        <DynamicConnectWallet />
+        </div>
             </div>
           )}
-
-          <div className="wallet-section" style={{ 
-            display: 'flex', 
-            justifyContent: 'flex-end', 
-            alignItems: 'center', 
-            gap: 'clamp(0.3rem, 0.6vw, 0.6rem)', 
-            flexShrink: 0,
-            minWidth: 'fit-content',
-            flexWrap: 'nowrap'
-          }}>
-            {address && (
-              <div style={{ flexShrink: 0 }}>
-                <HeaderEnergy address={address || undefined} />
-              </div>
-            )}
-            <div className="wallet-connect-wrapper" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              maxWidth: 'fit-content',
-              flexShrink: 0
-            }}>
-              <DynamicConnectWallet />
-            </div>
-          </div>
         </div>
       </header>
     </>
