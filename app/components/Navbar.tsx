@@ -95,9 +95,14 @@ function HeaderEnergy({ address }: { address?: string }) {
           ? data.bet_tokens 
           : (typeof data?.points === 'number' ? data.points : Number(data?.points) || 0);
         setBetTokens(tokens);
+      } else {
+        // If API returns error, set to 0 instead of null to show something
+        console.warn("BET tokens API error:", j?.error);
+        setBetTokens(0);
       }
     } catch (err) {
       console.error("Failed to fetch BET tokens:", err);
+      setBetTokens(0);
     }
   }, [address]);
 
@@ -311,9 +316,14 @@ export default function Navbar() {
             ? data.bet_tokens 
             : (typeof data?.points === 'number' ? data.points : Number(data?.points) || 0);
           setBetTokens(tokens);
+        } else {
+          // If API returns error, set to 0 instead of null to show something
+          console.warn("BET tokens API error:", j?.error);
+          setBetTokens(0);
         }
       } catch (err) {
         console.error("Failed to fetch BET tokens:", err);
+        setBetTokens(0);
       }
     }
     fetchEnergy();
