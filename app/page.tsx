@@ -799,15 +799,15 @@ function HomeContent() {
           <FAQ />
         ) : (
           <>
-            {/* Predictions content - show FIRST when predictions tab is active */}
+            {/* Predictions content - show when predictions tab is active */}
             {activeTab === 'predictions' && (
               <div style={{ marginBottom: 'clamp(1.5rem, 4vw, 3rem)' }}>
                 <KalshiPredictions address={address || undefined} />
               </div>
             )}
             
-            {/* Home content - show when home tab is active, or below predictions when predictions tab is active */}
-            {activeTab === 'home' || activeTab === 'predictions' ? (
+            {/* Home content - show only when home tab is active */}
+            {activeTab === 'home' ? (
               <>
                 {data && (
                   <>
