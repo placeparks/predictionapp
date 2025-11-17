@@ -641,7 +641,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
   }
 
   const grid = useMemo(() => series.map((s, index) => {
-    const title = s.title || s.event_title || "â€”";
+    const title = s.title || s.event_title || "";
     const ticker = s.ticker || s.series_ticker || "";
     const ms = (s.milestones ?? []).slice(0, 4);
     const totalVol =
@@ -1116,7 +1116,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
                             YES: {formatCents((typeof primary.yes_bid === "number") ? primary.yes_bid : (typeof primary.last_price === "number" ? primary.last_price : undefined))}
                           </div>
                           <div style={{ fontSize: "0.7rem", opacity: 0.6 }}>
-                            {primary.title || "â€”"}
+                            {primary.title || ""}
                           </div>
                         </div>
                         <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
@@ -1232,14 +1232,14 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
                     <div className="space-y-2" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {ms.map((m, k) => {
                         const yesTxt =
-                          typeof m.yes_bid === "number" ? `Yes ${m.yes_bid}Â¢` :
-                          typeof m.last_price === "number" ? `Yes ${m.last_price}Â¢` : "Yes â€”";
+                          typeof m.yes_bid === "number" ? `Yes ${m.yes_bid}` :
+                          typeof m.last_price === "number" ? `Yes ${m.last_price}` : "Yes";
                         const liveKey = m.live_type && m.id ? `${m.live_type}:${m.id}` : "";
                         const live = liveKey ? liveCache[liveKey] : null;
 
                         return (
                           <div key={k} style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "0.6rem 0.75rem", background: "rgba(255,255,255,0.03)" }}>
-                            <div style={{ fontSize: "0.9rem" }}>{m.title || "â€”"}</div>
+                            <div style={{ fontSize: "0.9rem" }}>{m.title || ""}</div>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
                               <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)" }}>{yesTxt}</div>
                               <div style={{ display: "flex", gap: 8 }}>
@@ -1342,7 +1342,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
               </button>
             )}
             {!hasMore && (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>Thatâ€™s all for now</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>Thats all for now</div>
             )}
           </div>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -1437,7 +1437,7 @@ export default function KalshiSeriesGrid({ address }: KalshiPredictionsProps) {
                   if (!pending) e.currentTarget.style.background = "rgba(99, 102, 241, 0.8)";
                 }}
               >
-                {pending ? "Signingâ€¦" : "Sign & Record"}
+                {pending ? "Signing¦" : "Sign & Record"}
               </button>
             </div>
           </div>
