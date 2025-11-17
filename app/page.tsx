@@ -513,9 +513,38 @@ function HomeContent() {
       findTokenId();
     }
   }, [hasBalance, balance, mintedTokenId, address, contractAddress]);
+  // Detect mobile/tablet to reduce particles
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Generate stable particle positions (not random on each render)
+  const particleCount = isMobile ? 5 : 12;
+  const particles = React.useMemo(() => {
+    return Array.from({ length: particleCount }, (_, i) => {
+      // Use index-based seed for consistent positioning
+      const seed = i * 0.618; // Golden ratio for better distribution
+      return {
+        id: i,
+        x: (Math.sin(seed * 100) * 0.5 + 0.5) * 100,
+        y: (Math.cos(seed * 150) * 0.5 + 0.5) * 100,
+        size: 20 + (i % 3) * 30,
+        color: ['rgba(255, 107, 53, 0.08)', 'rgba(120, 208, 66, 0.08)', 'rgba(99, 102, 241, 0.08)', 'rgba(255, 215, 0, 0.08)'][i % 4],
+        delay: (i * 0.3) % 6,
+        duration: 6 + (i % 3) * 2
+      };
+    });
+  }, [particleCount]);
+
   return (
     <>
-      {/* Floating Particles Background */}
+      {/* Floating Particles Background - Optimized for mobile */}
           <div style={{
         position: 'fixed',
         top: 0,
@@ -524,22 +553,23 @@ function HomeContent() {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        willChange: 'contents',
+        contain: 'layout style paint'
       }}>
-        {[...Array(20)].map((_, i) => (
+        {particles.map((particle) => (
           <div
-            key={i}
+            key={particle.id}
             className="particle"
             style={{
-              width: `${Math.random() * 100 + 20}px`,
-              height: `${Math.random() * 100 + 20}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              background: `radial-gradient(circle, ${
-                ['rgba(255, 107, 53, 0.1)', 'rgba(120, 208, 66, 0.1)', 'rgba(99, 102, 241, 0.1)', 'rgba(255, 215, 0, 0.1)'][Math.floor(Math.random() * 4)]
-              } 0%, transparent 70%)`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${Math.random() * 4 + 4}s`
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+              transform: 'translate(-50%, -50%) translateZ(0)',
+              background: `radial-gradient(circle, ${particle.color} 0%, transparent 70%)`,
+              animationDelay: `${particle.delay}s`,
+              animationDuration: `${particle.duration}s`
             }}
           />
         ))}
