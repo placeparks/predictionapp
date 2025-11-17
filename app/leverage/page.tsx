@@ -343,8 +343,8 @@ export default function LeverageTradingPage() {
               {markets.map((market) => {
                 const totalStake = market.yes_stake + market.no_stake;
                 const yesShare = totalStake ? (market.yes_stake / totalStake) * 100 : 0;
-                const title = market.market_title || market.market_ticker;
                 const ticker = market.market_ticker || market.market_id;
+                const title = market.market_title || ticker;
                 return (
                   <article
                     key={market.market_id}
@@ -359,8 +359,10 @@ export default function LeverageTradingPage() {
                     }}
                   >
                     <div>
-                      <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>{ticker}</p>
-                      <h3 style={{ margin: "0.2rem 0 0.4rem" }}>{title}</h3>
+                      <h3 style={{ margin: 0 }}>{title}</h3>
+                      <p style={{ margin: "0.2rem 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>
+                        {ticker}
+                      </p>
                     </div>
                     <div style={{ fontSize: "0.85rem", display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "#10b981" }}>YES | {formatNumber(market.yes_weight, 1)} wt</span>
@@ -421,7 +423,8 @@ export default function LeverageTradingPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {positions.map((pos) => {
-                const title = pos.market_title || pos.market_ticker || pos.market_id;
+                const ticker = pos.market_ticker || pos.market_id;
+                const title = pos.market_title || ticker;
                 const payout = pos.payout_amount || 0;
                 const pnl = pos.pnl_amount || 0;
                 return (
@@ -437,10 +440,12 @@ export default function LeverageTradingPage() {
                       gap: "0.5rem",
                       justifyContent: "space-between",
                     }}
-                  >
-                    <div style={{ flex: "1 1 240px" }}>
-                      <p style={{ margin: 0, fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>{pos.market_ticker}</p>
-                      <h3 style={{ margin: "0.15rem 0" }}>{title}</h3>
+                    >
+                      <div style={{ flex: "1 1 240px" }}>
+                        <h3 style={{ margin: 0 }}>{title}</h3>
+                        <p style={{ margin: "0.2rem 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>
+                          {ticker}
+                        </p>
                       <p style={{ margin: 0, color: pos.side_yes ? "#10b981" : "#f97316" }}>
                         {pos.side_yes ? "YES" : "NO"} | {formatNumber(pos.stake_amount)} USDC | {pos.leverage}x
                       </p>
