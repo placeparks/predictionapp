@@ -30,6 +30,9 @@ const ensureSupabase = () => {
 export async function GET(req: NextRequest) {
   try {
     ensureSupabase();
+    if (!supabaseAdmin) {
+      return NextResponse.json({ ok: false, error: "supabase_not_configured" }, { status: 500 });
+    }
     const url = new URL(req.url);
     const userRaw = url.searchParams.get("user") || "";
     let query = supabaseAdmin
