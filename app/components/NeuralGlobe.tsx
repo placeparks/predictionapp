@@ -790,6 +790,13 @@ export default function NeuralGlobe() {
         camera={{ position: [0, 0, 20], fov: 50 }} 
         dpr={isMobile ? [1, 1.5] : [1, 2]}
         gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
+        onCreated={({ gl }) => {
+          if (gl?.domElement?.style) {
+            gl.domElement.style.touchAction = "none";
+            gl.domElement.style.setProperty("touch-action", "none");
+            gl.domElement.style.setProperty("-ms-touch-action", "none");
+          }
+        }}
       >
         <ambientLight intensity={0.4} />
         <hemisphereLight args={["#cbd5f5", "#0b1120", 0.55]} />
