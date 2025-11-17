@@ -618,6 +618,19 @@ function HomeContent() {
             border-color: rgba(255, 255, 255, 0.4) !important;
           }
 
+          @media (max-width: 768px) {
+            .nft-card,
+            .nft-card:hover {
+              background: rgba(7, 11, 26, 0.98) !important;
+              border: 1px solid rgba(255, 255, 255, 0.08) !important;
+              box-shadow: none !important;
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+              transform: none !important;
+              animation: none !important;
+            }
+          }
+
                     .nft-image {
             background: linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(120, 208, 66, 0.2), rgba(99, 102, 241, 0.2)) !important;
             background-size: 200% 200% !important;
