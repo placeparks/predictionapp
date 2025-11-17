@@ -278,12 +278,12 @@ export default function Navbar() {
   const dropdownContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const truncatedAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
   const _isPointsPage = pathname === '/points'; // Used in commented code
   const isGlobePage = pathname === '/globe';
+  const isLeveragePage = pathname === '/leverage';
   const isBaseDailyPage = pathname === '/base-daily';
   const isReferralsPage = pathname === '/referrals';
   const currentTab = isHomePage ? (searchParams.get('tab') || 'home') : null;
@@ -955,6 +955,14 @@ export default function Navbar() {
               textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
               transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
             }}>Forecast Engine</Link>
+            <Link href="/leverage" onClick={() => setMobileMenuOpen(false)} style={{
+              textDecoration: 'none', padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: 8,
+              background: isLeveragePage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+              border: isLeveragePage ? '1px solid rgba(255, 215, 0, 0.4)' : '1px solid transparent',
+              color: isLeveragePage ? '#FFD700' : '#FFD700',
+              textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 'clamp(0.65rem, 1.1vw, 0.875rem)', fontWeight: 600,
+              transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0
+            }}>Leverage</Link>
        { /*    <Link href="/points" onClick={() => setMobileMenuOpen(false)} style={{
               textDecoration: 'none', padding: 'clamp(0.35rem, 0.6vw, 0.5rem) clamp(0.6rem, 1.2vw, 1rem)', borderRadius: 8,
               background: _isPointsPage ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
@@ -1072,6 +1080,12 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer', fontFamily: 'inherit' }}
               >Forecast Engine</Link>
+              <Link
+                href="/leverage"
+                className={`mobile-menu-item ${isLeveragePage ? 'active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+                style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer', fontFamily: 'inherit' }}
+              >Leverage</Link>
               <button
                 className={`mobile-menu-item ${(isHomePage && currentTab === 'dashboard') ? 'active' : ''}`}
                 onClick={() => handleNavClick('dashboard')}
