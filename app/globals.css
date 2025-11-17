@@ -313,18 +313,13 @@
     }
   }
 
-  /* Reduce particles on mobile for better performance */
+  /* Completely hide particles on mobile to prevent flashing */
   @media (max-width: 768px) {
     .particle {
-      opacity: 0.6;
-    }
-  }
-
-  /* Disable particles on very small screens to prevent flashing */
-  @media (max-width: 480px) {
-    .particle {
-      animation-duration: 8s;
-      opacity: 0.5;
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      animation: none !important;
     }
   }
 
