@@ -288,12 +288,52 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
   
-  /* Floating particles */
+  /* Floating particles - Optimized for performance */
   .particle {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    animation: float 6s ease-in-out infinite;
+    animation: particle-float 6s ease-in-out infinite;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Optimized particle animation using only transform for GPU acceleration */
+  @keyframes particle-float {
+    0%, 100% {
+      transform: translate(-50%, -50%) translateZ(0) translateY(0px);
+    }
+    33% {
+      transform: translate(-50%, -50%) translateZ(0) translateY(-15px);
+    }
+    66% {
+      transform: translate(-50%, -50%) translateZ(0) translateY(-8px);
+    }
+  }
+
+  /* Reduce particles on mobile for better performance */
+  @media (max-width: 768px) {
+    .particle {
+      opacity: 0.6;
+    }
+  }
+
+  /* Disable particles on very small screens to prevent flashing */
+  @media (max-width: 480px) {
+    .particle {
+      animation-duration: 8s;
+      opacity: 0.5;
+    }
+  }
+
+  /* Respect user's motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    .particle {
+      animation: none;
+      opacity: 0.3;
+    }
   }
   
   /* Shimmer effect for text */
