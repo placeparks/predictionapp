@@ -13,7 +13,7 @@ interface MarketAgg {
   no_weight: number;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     if (!supabaseAdmin) {
       return NextResponse.json(
