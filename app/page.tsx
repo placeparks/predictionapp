@@ -513,20 +513,28 @@ function HomeContent() {
       findTokenId();
     }
   }, [hasBalance, balance, mintedTokenId, address, contractAddress]);
-  // Detect mobile/tablet to reduce particles
-  const [isMobile, setIsMobile] = useState(false);
+  // Detect mobile/tablet to disable particles completely on mobile
+  const [isMobile, setIsMobile] = useState(true); // Default to true to prevent flash on initial render
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+      const isMobileDevice = window.innerWidth < 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(isMobileDevice);
     };
+    // Check immediately
     checkMobile();
+    // Also check after a small delay to ensure window is available
+    const timeoutId = setTimeout(checkMobile, 100);
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-  // Generate stable particle positions (not random on each render)
-  const particleCount = isMobile ? 5 : 12;
+  // Generate stable particle positions (not random on each render) - only for desktop
   const particles = React.useMemo(() => {
+    if (isMobile) return []; // No particles on mobile
+    const particleCount = 12;
     return Array.from({ length: particleCount }, (_, i) => {
       // Use index-based seed for consistent positioning
       const seed = i * 0.618; // Golden ratio for better distribution
@@ -540,40 +548,42 @@ function HomeContent() {
         duration: 6 + (i % 3) * 2
       };
     });
-  }, [particleCount]);
+  }, [isMobile]);
 
   return (
     <>
-      {/* Floating Particles Background - Optimized for mobile */}
-          <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 0,
-        overflow: 'hidden',
-        willChange: 'contents',
-        contain: 'layout style paint'
-      }}>
-        {particles.map((particle) => (
-          <div
-            key={particle.id}
-            className="particle"
-            style={{
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-              transform: 'translate(-50%, -50%) translateZ(0)',
-              background: `radial-gradient(circle, ${particle.color} 0%, transparent 70%)`,
-              animationDelay: `${particle.delay}s`,
-              animationDuration: `${particle.duration}s`
-            }}
-          />
-        ))}
-            </div>
+      {/* Floating Particles Background - Desktop only, disabled on mobile to prevent flashing */}
+      {!isMobile && particles.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex: 0,
+          overflow: 'hidden',
+          willChange: 'contents',
+          contain: 'layout style paint'
+        }}>
+          {particles.map((particle) => (
+            <div
+              key={particle.id}
+              className="particle"
+              style={{
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                transform: 'translate(-50%, -50%) translateZ(0)',
+                background: `radial-gradient(circle, ${particle.color} 0%, transparent 70%)`,
+                animationDelay: `${particle.delay}s`,
+                animationDuration: `${particle.duration}s`
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <main
         style={{
