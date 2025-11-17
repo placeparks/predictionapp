@@ -63,6 +63,24 @@ export async function GET(_req: NextRequest) {
       }
     });
 
+    const marketIds = Array.from(aggregates.keys());
+    if (marketIds.length > 0) {
+      const { data: metadata } = await supabaseAdmin
+        .from("markets")
+        .select("market_id, title, ticker")
+        .in("market_id", marketIds);
+      metadata?.forEach((meta) => {
+        const entry = aggregates.get(meta.market_id);
+        if (!entry) return;
+        if ((!entry.market_title || entry.market_title.trim() === "") && meta.title) {
+          entry.market_title = meta.title;
+        }
+        if ((!entry.market_ticker || entry.market_ticker.trim() === "") && meta.ticker) {
+          entry.market_ticker = meta.ticker;
+        }
+      });
+    }
+
     const markets = Array.from(aggregates.values()).sort(
       (a, b) =>
         b.yes_stake +
