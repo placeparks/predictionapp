@@ -5,14 +5,8 @@ import Link from "next/link";
 import { useAccount } from "wagmi";
 import {
   Gauge,
-  Layers,
-  Shield,
-  Target,
-  Zap,
-  TrendingUp,
   LineChart,
   Loader2,
-  Coins,
 } from "lucide-react";
 
 const MAX_LEVERAGE = Number(process.env.NEXT_PUBLIC_MAX_LEVERAGE || 10);
@@ -279,7 +273,7 @@ export default function LeverageTradingPage() {
                   fontWeight: 600,
                 }}
               >
-                Deposit USDC ->
+                Deposit USDC →
               </Link>
             </div>
           </div>
