@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/db";
 import { isAddress } from "viem";
 import { BASE_DAILY_MARKETS } from "@/lib/baseDaily";
 
+const ENERGY_COST = Number(process.env.PREDICTION_ENERGY_COST || "30");
+
 interface KalshiPrediction {
   id: string;
   user_address: string;
@@ -22,6 +24,11 @@ interface KalshiPrediction {
   market_ticker?: string | null;
   prediction_type?: string;
   source?: string;
+  stake_amount?: number | null;
+  leverage?: number | null;
+  weight?: number | null;
+  payout_amount?: number | null;
+  pnl_amount?: number | null;
 }
 
 interface BaseDailyEntry {
@@ -60,12 +67,40 @@ interface CombinedPrediction {
   settled_at?: string | null;
   awarded?: boolean;
   stake_points?: number | null;
+  stake_amount?: number | null;
+  leverage?: number | null;
+  weight?: number | null;
+  payout_amount?: number | null;
+  pnl_amount?: number | null;
 }
 
 export async function POST(req: NextRequest) {
+  let userAddress: string | undefined;
+  
+  const refundEnergy = async () => {
+    if (!supabaseAdmin || !userAddress) return;
+    try {
+      await supabaseAdmin.rpc("grant_energy", {
+        p_user: userAddress,
+        p_amount: ENERGY_COST,
+      });
+    } catch (err) {
+      console.warn("Failed to refund energy (non-fatal):", err);
+    }
+  };
+
   try {
     const body = await req.json();
-    const { user, marketId, periodId, sideYes, marketTitle, marketTicker, referralCode, vaultId } = body as {
+    const { 
+      user, 
+      marketId, 
+      periodId, 
+      sideYes, 
+      marketTitle, 
+      marketTicker, 
+      referralCode, 
+      vaultId,
+    } = body as {
       user: string;
       marketId: string;
       periodId: number | string;
@@ -89,13 +124,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "invalid_user", message: `Invalid user address: ${user}` }, { status: 400 });
     }
 
-    // Energy-only predictions: No USDC/vault cap check needed
-    // Predictions are gated by energy cost only (30 energy per prediction)
-
-    // Spend energy atomically before recording prediction
-    // Each prediction costs 30 energy (fixed cost)
-    const ENERGY_COST = 30;
-    const userAddress = user.toLowerCase();
+    userAddress = user.toLowerCase();
 
     // Check if user has enough energy
     try {
@@ -250,6 +279,7 @@ export async function POST(req: NextRequest) {
     
     if (actualPeriodError) {
       console.error("periods query error:", actualPeriodError);
+      await refundEnergy();
       return NextResponse.json({ ok: false, error: "period_query_failed", message: actualPeriodError.message }, { status: 500 });
     }
     
@@ -278,7 +308,7 @@ export async function POST(req: NextRequest) {
     
     // Use the actual period ID (may have been advanced)
     periodIdNum = actualPeriodId;
-    
+
     // Save/update market metadata in markets table (for caching and status tracking)
     if (marketTicker) {
       try {
@@ -305,8 +335,8 @@ export async function POST(req: NextRequest) {
         console.warn("Failed to save market metadata (non-fatal):", marketErr);
       }
     }
-    
-    // Check for duplicate prediction (user + market + period + side)
+
+    // Prevent duplicate predictions (same user/market/period/side)
     const { data: existingPrediction } = await supabaseAdmin
       .from("predictions")
       .select("id")
@@ -315,18 +345,15 @@ export async function POST(req: NextRequest) {
       .eq("period_id", periodIdNum)
       .eq("side_yes", sideYes)
       .maybeSingle();
-    
+
     if (existingPrediction) {
-      // Rollback energy
-      try {
-        await supabaseAdmin.rpc("grant_energy", { 
-          p_user: userAddress, 
-          p_amount: ENERGY_COST 
-        });
-      } catch {}
-      return NextResponse.json({ ok: false, error: "duplicate_prediction", message: "You have already made this prediction" }, { status: 409 });
+      await refundEnergy();
+      return NextResponse.json(
+        { ok: false, error: "duplicate_prediction", message: "You have already made this prediction" },
+        { status: 409 }
+      );
     }
-    
+
     const { data, error } = await supabaseAdmin
       .from("predictions")
       .insert({
@@ -337,7 +364,10 @@ export async function POST(req: NextRequest) {
         market_title: marketTitle || null,
         market_ticker: marketTicker || null,
         side_yes: sideYes,
-        stake_points: ENERGY_COST, // Store energy cost as stake_points for compatibility
+        stake_points: ENERGY_COST,
+        stake_amount: null,
+        leverage: null,
+        weight: null,
         nonce: Date.now(), // Use timestamp as nonce (for backward compatibility with DB schema)
         deadline: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now (for backward compatibility)
         signature: "", // Empty signature (for backward compatibility with DB schema)
@@ -346,13 +376,6 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      // rollback energy on insert failure
-      try {
-        await supabaseAdmin.rpc("grant_energy", { 
-          p_user: userAddress, 
-          p_amount: ENERGY_COST 
-        });
-      } catch {}
       // Unique violation handling
       interface PostgresError {
         code?: string;
@@ -374,6 +397,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, prediction: data });
   } catch (e) {
+    await refundEnergy();
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ ok: false, error: "internal_error", message: msg }, { status: 500 });
   }
@@ -488,6 +512,11 @@ export async function GET(req: NextRequest) {
             awarded: outcome?.awarded ?? false,
             // Base Daily specific fields
             stake_points: null, // Base Daily doesn't use stake_points
+            stake_amount: null,
+            leverage: null,
+            weight: null,
+            payout_amount: null,
+            pnl_amount: null,
           };
         });
       }
