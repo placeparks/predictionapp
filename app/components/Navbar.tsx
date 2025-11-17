@@ -278,6 +278,7 @@ export default function Navbar() {
   const dropdownContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   // Determine active tab/page
   const isHomePage = pathname === '/';
@@ -339,6 +340,19 @@ export default function Navbar() {
       window.removeEventListener('energy-updated', handleEnergyUpdate as EventListener);
     };
   }, [address]);
+
+  useEffect(() => {
+    const measureHeader = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight || 0);
+      }
+    };
+    measureHeader();
+    window.addEventListener('resize', measureHeader);
+    return () => window.removeEventListener('resize', measureHeader);
+  }, []);
+
+  const mobileMenuMaxHeight = headerHeight ? `calc(100vh - ${headerHeight}px)` : undefined;
 
   // Navigation handlers
   const handleNavClick = (tab: string) => {
@@ -412,28 +426,36 @@ export default function Navbar() {
 
   // Position mobile menu below header and handle click outside
   useEffect(() => {
-    if (mobileMenuOpen && headerRef.current && mobileMenuRef.current) {
-      const headerRect = headerRef.current.getBoundingClientRect();
-      mobileMenuRef.current.style.top = `${headerRect.bottom}px`;
-    }
+    const updateMenuPosition = () => {
+      if (headerRef.current && mobileMenuRef.current) {
+        const headerRect = headerRef.current.getBoundingClientRect();
+        mobileMenuRef.current.style.top = `${headerRect.bottom}px`;
+        mobileMenuRef.current.style.maxHeight = `calc(100vh - ${headerRect.bottom}px)`;
+      }
+    };
 
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as HTMLElement;
-      if (mobileMenuOpen && 
-          headerRef.current && 
-          !headerRef.current.contains(target) &&
-          mobileMenuRef.current &&
-          !mobileMenuRef.current.contains(target)) {
+      if (
+        mobileMenuOpen &&
+        headerRef.current &&
+        !headerRef.current.contains(target) &&
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(target)
+      ) {
         setMobileMenuOpen(false);
       }
     };
 
     if (mobileMenuOpen) {
+      updateMenuPosition();
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
+      window.addEventListener('resize', updateMenuPosition);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
         document.removeEventListener('touchstart', handleClickOutside);
+        window.removeEventListener('resize', updateMenuPosition);
       };
     }
   }, [mobileMenuOpen]);
@@ -718,15 +740,17 @@ export default function Navbar() {
         }
 
         .mobile-menu {
-          background: rgba(0, 0, 0, 0.95) !important;
-          backdrop-filter: blur(30px) saturate(180%) !important;
-          -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
-          border-bottom: 2px solid rgba(255, 255, 255, 0.1) !important;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+          background: rgba(7, 11, 26, 0.98) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
           animation: slide-up 0.3s ease-out !important;
           z-index: 99 !important;
           display: block !important;
           visibility: visible !important;
+          max-height: calc(100vh - 4rem);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
         }
 
         .mobile-menu-item {
@@ -1036,7 +1060,12 @@ export default function Navbar() {
                 padding: '1rem 0',
                 zIndex: 1000,
                 width: '100%',
-                maxWidth: '100vw'
+                maxWidth: '100vw',
+                maxHeight: mobileMenuMaxHeight,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain'
               }}
             >
               <button
